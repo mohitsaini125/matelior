@@ -5,7 +5,6 @@
 ![Status](https://img.shields.io/badge/Status-In%20Development-orange)
 ![Backend](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express-green)
 ![Database](https://img.shields.io/badge/Database-MongoDB-brightgreen)
-![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
 
