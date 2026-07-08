@@ -67,8 +67,7 @@ Upcoming:
 
 ## Frontend (Planned)
 
-- React
-- Tailwind CSS
+- React Native
 
 ---
 
