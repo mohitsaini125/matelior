@@ -1,4 +1,3 @@
-````markdown
 # MATELIOR
 
 > A modern, scalable full-stack e-commerce platform built with the MERN stack.
@@ -372,4 +371,3 @@ This repository grows alongside that journey.
 ## ⭐ Support
 
 If you find this project useful or interesting, consider giving it a **⭐ Star**. Your support is greatly appreciated!
-````
