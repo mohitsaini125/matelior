@@ -1,86 +1,119 @@
 import Product from "../models/product.models.js"
 import User from "../models/user.models.js"
+import { errorResponse, failedResponse, successResponse } from "../utils/response.js"
 
 export const addProduct = async (req, res)=>{
     try {
-    const user = req.user;
-    if(user.role == 'admin') {
         const body = req.body
         if(!body?.name || !body?.category || !body?.price || !body?.stock ) {
-            return res.status(400).json({
-                success : false,
-                message : "Required fields missing"
-            })
+            failedResponse(res, 400, "Required fields are missing")
         } else {
             const newProduct = await Product.create(body)
-            return res.status(201).json({
-                success : true,
-                data : newProduct,
-                message : "new product added"
-            })
+            successResponse(res, 201, "New product has been added", newProduct)
         }
-    } else {
-        return res.status(403).json({
-            success : false,
-            message : "Access denied, admins only"
-        })
-    }
     } catch(err) {
-        return res.status(500).json({
-            success : false,
-            message : err.message || "something went wrong"
-        })
+        errorResponse(res, err)
     }
 }
 
 export const editProduct = async (req, res) => {
     try {
-    const user = req.user;
-    const id = req.params.id;
-    const body = req.body;
-    if(user.role == 'admin') {
-        const updatedProduct = await Product.findByIdAndUpdate(id, body, { returnDocument : "after" })
-        return res.status(200).json({
-            success : true,
-            message : "product updated",
-            data : updatedProduct
-        })
-    } else {
-        return res.status(403).json({
-            success : false,
-            message : "Access denied, admins only"
-        })
-    }
+
+        const id = req.params.id;
+        const body = req.body;
+        const product = await Product.findById(id)
+        if(!product) {
+            failedResponse(res, 404, "product does not exist")
+        }
+        console.log(id)
+        const updatedProduct = await Product.findByIdAndUpdate(id, body)
+        successResponse(res, 200, "prodcut updated", updatedProduct)
+
     } catch(err) {
-        return res.status(500).json({
-            success : false,
-            message : err.message || "something went wrong"
-        })
+        errorResponse(res, err)
     }
 }
 
 
 export const deleteProduct = async (req, res) => {
     try {
-    const user = req.user;
-    const id = req.params.id;
-    if(user.role == 'admin') {
+
+        const id = req.params.id;
         const deletedProduct = await Product.findByIdAndDelete(id)
-        return res.status(200).json({
-            success : true,
-            message : "product deleted",
-            data : deletedProduct
-        })
-    } else {
-        return res.status(403).json({
-            success : false,
-            message : "Access denied, admins only"
-        })
-    }
+        successResponse(res, 200, "product deleted", deletedProduct)
+
     } catch(err) {
-        return res.status(500).json({
-            success : false,
-            message : err.message || "something went wrong"
-        })
+        errorResponse(res, err)
     }
 }
+
+
+export const getProducts = async (req, res)=>{
+    try {
+        const { sort, order, category, sku, q } = req.query
+        const sortOptions = {}
+        const orderNumber = 1
+        if(order == "desc") {
+            orderNumber = -1
+        }
+       if(sort) {
+         if(sort == 'price') {
+            sortOptions.price = orderNumber
+        } else if (sort == 'category') {
+            sortOptions.category = orderNumber
+        }
+       }
+        const query = {};
+        if(q) {
+            query.$or = [
+                {
+                    name : {
+                        $regex : q,
+                        $options : "i"
+                    }
+                },
+                {
+                    description : {
+                        $regex : q,
+                        $options : "i"
+                    }
+                },
+                {
+                    category : {
+                        $regex : q,
+                        $options : "i"
+                    }
+                },
+            ]
+        }
+        if(category) {
+            query.category = category
+        }
+        if(sku) {
+            query.sku = sku
+        }
+        const products = await Product
+        .find(query)
+        .sort(sortOptions)
+        .populate("category")
+        successResponse(res, 200, "products fetched successfully", products)
+    } catch(err) {
+        errorResponse(res, err)
+    }
+}
+
+export const getProductById = async (req, res) => {
+    try {
+
+        const id = req.params.id;
+    const product = await Product.findById(id).populate("category")
+    if(!product) {
+        failedResponse(res, 404, "product does not exist")
+    }
+    successResponse(res, 200, "product fetched", product)
+
+    } catch(err) {
+        errorResponse(res, err)
+    }
+}
+

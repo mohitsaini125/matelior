@@ -1,16 +1,14 @@
 import jwt from "jsonwebtoken"
 import User from "../models/user.models.js";
 import bcrypt from "bcrypt"
+import { errorResponse, failedResponse, successResponse } from "../utils/response.js";
 
 export const register = async (req, res) => {
     const body = req.body;
 
     try {
         if(!body?.name || !body?.email || !body?.password) {
-        return res.status(400).json({    //client sent invalid or incomplete data(400)
-            success : false,
-            message : "data invalid"
-        })
+        failedResponse(res, 400, "data invalid")
     }
 
     const user = await User.findOne({
@@ -18,10 +16,7 @@ export const register = async (req, res) => {
     })
 
     if(user) {
-        return res.status(409).json({       //resource/request conflicts with the existing data
-            success : false,
-            message : "user already exists"
-        })
+        failedResponse(res, 409, "user already exists")
     }
 
     const hashedPassword = await bcrypt.hash(body.password, 10)
@@ -38,63 +33,37 @@ export const register = async (req, res) => {
     }
 
     const token = jwt.sign(tokenData, process.env.jwtSecret)
-    return res.status(201).json({         //a new resource has been created(201)
-        success : true,
-        message : "successfully registered",
-        token : token
-    })
+    successResponse(res, 201, "successfully registered", token)
 
     } catch(err) {
-        return res.status(500).json({      //the server failed unexpectedly
-            success : false,
-            message : err.message || "something went wrong"
-        })
+        errorResponse(res, err)
     }
 }
 
 
 export const login = async (req, res)=>{
-    const body = req.body;
+    try {
 
-   try {
+       const body = req.body;
      if(!body?.email || !body?.password) {
-        return res.status(400).json({
-            success : false,
-            message : "invalid data"
-        })
+        failedResponse(res, 400, "invalid data")
     }
-
     const user = await User.findOne({
         email : body.email
     })
 
     if(!user) {
-        return res.status(404).json({
-            success : false,
-            message : "user does not exist, please register."
-        })
+        failedResponse(res, 404, "user does not exist, please register")
     }
-
     const isCorrect = await bcrypt.compare(body.password, user.password)
     if(!isCorrect) {
-        return res.status(400).json({
-            success : false,
-            message : "invalid credentials"
-        })
+        failedResponse(res, 400, "invalid credentials")
     }
-
     const token = jwt.sign({ id : user._id }, process.env.jwtSecret)
+    successResponse(res, 200, token, "logged in")
 
-    return res.json({
-        success : true,
-        message : "logged in",
-        token : token
-    })
    } catch(err) {
-    return res.status(500).json({
-        success : false,
-        message : err.message || "something went wrong"
-    })
+        errorResponse(res, err)
    }
 
 }

@@ -14,8 +14,8 @@ const productSchema = new mongoose.Schema({
         maxlength : 1000
     },
     category : {
-        type : String,
-        enum : ["wallet", "glasses", "belt", "ring", "pendant"],
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "Category",
         required : true
     },
     price : {

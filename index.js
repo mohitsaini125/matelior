@@ -3,13 +3,15 @@ import mongoose from "mongoose"
 import dotenv from "dotenv"
 import userRouter from "./routes/user.routes.js"
 import productRouter from "./routes/product.routes.js"
+import categoryRouter from "./routes/category.routes.js"
 dotenv.config();
 
 const server = express();
 
 server.use(express.json())
 server.use("/user", userRouter);
-server.use("/products", productRouter)
+server.use("/product", productRouter)
+server.use("/category", categoryRouter)
 
 
 mongoose.connect(process.env.dbURL).then(()=>{
