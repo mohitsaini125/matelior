@@ -1,3 +1,4 @@
+````markdown
 # MATELIOR
 
 > A modern, scalable full-stack e-commerce platform built with the MERN stack.
@@ -8,52 +9,71 @@
 
 ---
 
-## 📖 About
+# 📖 About
 
-MATELIOR is a full-stack e-commerce application being built from scratch with a focus on **clean architecture, scalability, security, and production-ready backend practices**.
+MATELIOR is a full-stack e-commerce platform being built from scratch with a strong focus on **clean architecture, scalability, security, and production-ready backend development**.
 
-Instead of simply creating CRUD APIs, this project aims to implement how real-world e-commerce platforms are designed.
+Rather than building a simple CRUD application, the goal is to understand and implement the engineering practices used in real-world e-commerce systems.
 
-The development journey is being documented publicly through daily updates on LinkedIn.
+The entire development journey is being documented publicly through daily LinkedIn posts.
 
 ---
 
-## 🚧 Project Status
+# 🚧 Project Status
 
-**Currently Under Development**
+## Currently Under Development
 
-Completed:
-- ✅ Project Setup
-- ✅ Express Server
-- ✅ MongoDB Integration
-- ✅ User Authentication
-- ✅ Password Hashing (bcrypt)
-- ✅ JWT Authentication
-- ✅ Role-Based Authorization
-- ✅ Product Model
-- ✅ Add Product API
-- ✅ Update Product API
-- ✅ Delete Product API
+### ✅ Completed
 
-Currently Working On:
-- 🔄 Product Retrieval APIs
+- Express Server Setup
+- MongoDB Integration
+- User Authentication
+- Password Hashing (bcrypt)
+- JWT Authentication
+- Authentication Middleware
+- Role-Based Authorization
+- Product Module
+  - Create Product
+  - Update Product
+  - Delete Product
+  - Get Products
+  - Get Product by ID
+  - Search
+  - Filtering
+  - Sorting
+- Category Module
+  - Create Category
+  - Update Category
+  - Delete Category
+  - Get Categories
+  - Get Category by ID
+  - Search
+  - Filtering
+  - Sorting
+- Product ↔ Category Relationship using MongoDB References
+- Mongoose Populate
+- Reusable Response Utility Functions
 
-Upcoming:
-- Categories
+---
+
+## 🚀 Upcoming
+
+- Pagination
 - Cart
 - Wishlist
-- Addresses
+- Address Management
 - Orders
-- Payments
-- Reviews
+- Payment Integration
+- Reviews & Ratings
 - Admin Dashboard
 - Image Uploads
-- Search & Filters
+- Product Inventory Management
+- Coupons
 - Deployment
 
 ---
 
-# 🛠️ Tech Stack
+# 🛠 Tech Stack
 
 ## Backend
 
@@ -80,6 +100,8 @@ MATELIOR/
 │── middleware/
 │── models/
 │── routes/
+│── utils/
+│   └── response.js
 │── .env
 │── index.js
 │── package.json
@@ -98,29 +120,94 @@ MATELIOR/
 - JWT Authentication
 - Protected Routes
 
+---
+
 ## Authorization
 
-- Customer Role
 - Admin Role
-- Admin-only Product Management
+- Customer Role
+- Admin-only Product & Category Management
+- Middleware-based Authorization
+
+---
 
 ## Products
 
-- Create Product
+- Add Product
 - Update Product
 - Delete Product
+- Get All Products
+- Get Product by ID
+- Search Products
+- Filter Products
+- Sort Products
 - Product Validation
 - Product Schema with Metadata
+- Category Population
+
+---
+
+## Categories
+
+- Add Category
+- Update Category
+- Delete Category
+- Get All Categories
+- Get Category by ID
+- Search Categories
+- Filter Categories
+- Sort Categories
+
+---
+
+## Utilities
+
+- Standardized Success Responses
+- Standardized Error Responses
+- Standardized Failure Responses
 
 ---
 
 # 🔐 Security
 
-- Password hashing using bcrypt
-- JWT-based authentication
-- Protected API routes
-- Role-based authorization
-- Environment variables using dotenv
+- Password Hashing using bcrypt
+- JWT Authentication
+- Protected API Routes
+- Role-Based Authorization
+- Environment Variables using dotenv
+
+---
+
+# 🗄 Database Design
+
+### User
+
+- Name
+- Email
+- Password
+- Role
+
+### Product
+
+- Name
+- Description
+- Category (Referenced)
+- Price
+- Discount
+- Stock
+- SKU
+- Images
+- Material
+- Colors
+- Weight
+- Tags
+
+### Category
+
+- Name
+- Description
+- Image
+- Status
 
 ---
 
@@ -128,20 +215,34 @@ MATELIOR/
 
 ## User
 
-| Method | Endpoint | Description |
-|---------|----------|-------------|
-| POST | `/user/register` | Register User |
-| POST | `/user/login` | Login User |
+| Method | Endpoint | Access |
+|----------|----------|--------|
+| POST | `/user/register` | Public |
+| POST | `/user/login` | Public |
 
 ---
 
 ## Products
 
 | Method | Endpoint | Access |
-|---------|----------|--------|
-| POST | `/products` | Admin |
-| PATCH | `/products/:id` | Admin |
-| DELETE | `/products/:id` | Admin |
+|----------|----------|--------|
+| POST | `/product` | Admin |
+| PATCH | `/product/:id` | Admin |
+| DELETE | `/product/:id` | Admin |
+| GET | `/product` | Public |
+| GET | `/product/:id` | Public |
+
+---
+
+## Categories
+
+| Method | Endpoint | Access |
+|----------|----------|--------|
+| POST | `/category` | Admin |
+| PATCH | `/category/:id` | Admin |
+| DELETE | `/category/:id` | Admin |
+| GET | `/category` | Public |
+| GET | `/category/:id` | Public |
 
 ---
 
@@ -163,19 +264,21 @@ npm install
 
 ---
 
-## Create .env
+## Configure Environment Variables
 
-```
+Create a `.env` file in the project root.
+
+```env
 dbURL=your_mongodb_connection_string
 jwtSecret=your_secret_key
 ```
 
 ---
 
-## Start Development Server
+## Run Development Server
 
 ```bash
-npm run dev
+npm start
 ```
 
 ---
@@ -184,45 +287,55 @@ npm run dev
 
 - [x] Project Setup
 - [x] Authentication
-- [x] Authorization
-- [x] Product Creation
-- [x] Product Update
-- [x] Product Delete
-- [ ] Product Listing
-- [ ] Product Details
-- [ ] Search & Filtering
-- [ ] Categories
+- [x] JWT Authorization
+- [x] Product CRUD
+- [x] Product Search
+- [x] Product Filtering
+- [x] Product Sorting
+- [x] Category CRUD
+- [x] Category Search
+- [x] Category Filtering
+- [x] Category Sorting
+- [x] MongoDB Relationships
+- [x] Reusable Response Utilities
+- [ ] Pagination
 - [ ] Wishlist
 - [ ] Cart
 - [ ] Address Management
 - [ ] Orders
 - [ ] Payment Integration
 - [ ] Reviews
+- [ ] Inventory Management
+- [ ] Coupons
 - [ ] Admin Dashboard
 - [ ] Deployment
 
 ---
 
-# 🎯 Goal
+# 🎯 Project Goals
 
-The objective of MATELIOR is to learn and implement backend engineering practices that resemble production-grade applications while building a complete full-stack e-commerce platform.
+This project is focused on learning and implementing backend engineering concepts that resemble production-grade applications.
 
-Every feature is developed with emphasis on:
+Areas of focus include:
 
 - Clean Architecture
-- Modular Code
-- Security
-- Scalability
-- Maintainability
+- REST API Design
+- Modular Code Organization
+- Authentication & Authorization
+- MongoDB Data Modeling
+- Scalable Project Structure
+- Maintainable Codebase
+- Security Best Practices
 
 ---
 
-# 📈 Development Journey
+# 📈 Build in Public
 
-This project is being built publicly, with regular progress updates and technical insights shared on LinkedIn.
+I'm documenting the complete development journey of MATELIOR through daily LinkedIn updates, sharing new features, architectural decisions, lessons learned, and improvements made along the way.
 
 ---
 
-## ⭐ If you like this project
+## ⭐ Support the Project
 
-Consider giving the repository a ⭐ to support the journey.
+If you found this project interesting or helpful, consider giving the repository a **⭐ Star**.
+````
