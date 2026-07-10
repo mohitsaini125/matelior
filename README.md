@@ -4,78 +4,88 @@
 > A modern, scalable full-stack e-commerce platform built with the MERN stack.
 
 ![Status](https://img.shields.io/badge/Status-In%20Development-orange)
-![Backend](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express-green)
+![Backend](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express.js-green)
 ![Database](https://img.shields.io/badge/Database-MongoDB-brightgreen)
 
 ---
 
-# 📖 About
+## 📖 About
 
-MATELIOR is a full-stack e-commerce platform being built from scratch with a strong focus on **clean architecture, scalability, security, and production-ready backend development**.
+**MATELIOR** is a full-stack e-commerce platform built from scratch with the goal of implementing real-world backend engineering practices.
 
-Rather than building a simple CRUD application, the goal is to understand and implement the engineering practices used in real-world e-commerce systems.
+This project focuses on writing clean, modular, secure, and scalable code while following industry-standard architecture. Instead of creating a basic CRUD application, MATELIOR is designed to simulate how production-grade e-commerce systems are structured.
 
-The entire development journey is being documented publicly through daily LinkedIn posts.
+The complete development journey is being documented through daily LinkedIn posts, where I share progress updates, architectural decisions, and key learnings.
 
 ---
 
-# 🚧 Project Status
+## 🚧 Project Status
 
-## Currently Under Development
+**Status:** 🟡 In Development
 
 ### ✅ Completed
 
-- Express Server Setup
-- MongoDB Integration
-- User Authentication
+#### Authentication & Authorization
+- User Registration
+- User Login
 - Password Hashing (bcrypt)
 - JWT Authentication
 - Authentication Middleware
-- Role-Based Authorization
-- Product Module
-  - Create Product
-  - Update Product
-  - Delete Product
-  - Get Products
-  - Get Product by ID
-  - Search
-  - Filtering
-  - Sorting
-- Category Module
-  - Create Category
-  - Update Category
-  - Delete Category
-  - Get Categories
-  - Get Category by ID
-  - Search
-  - Filtering
-  - Sorting
-- Product ↔ Category Relationship using MongoDB References
+- Role-Based Authorization (Admin & Customer)
+
+#### Product Module
+- Create Product
+- Update Product
+- Delete Product
+- Get All Products
+- Get Product by ID
+- Search Products
+- Filter Products
+- Sort Products
+
+#### Category Module
+- Create Category
+- Update Category
+- Delete Category
+- Get All Categories
+- Get Category by ID
+- Search Categories
+- Filter Categories
+- Sort Categories
+
+#### Database
+- MongoDB Integration
+- Mongoose ODM
+- Product ↔ Category Relationship using ObjectId References
 - Mongoose Populate
-- Reusable Response Utility Functions
+
+#### Utilities
+- Reusable Success Response Utility
+- Reusable Failure Response Utility
+- Reusable Error Response Utility
 
 ---
 
-## 🚀 Upcoming
+## 🚀 Upcoming Features
 
 - Pagination
-- Cart
+- Shopping Cart
 - Wishlist
 - Address Management
-- Orders
+- Order Management
 - Payment Integration
 - Reviews & Ratings
-- Admin Dashboard
-- Image Uploads
 - Product Inventory Management
-- Coupons
+- Coupon System
+- Image Upload
+- Admin Dashboard
 - Deployment
 
 ---
 
 # 🛠 Tech Stack
 
-## Backend
+### Backend
 
 - Node.js
 - Express.js
@@ -85,7 +95,7 @@ The entire development journey is being documented publicly through daily Linked
 - bcrypt
 - dotenv
 
-## Frontend (Planned)
+### Frontend *(Planned)*
 
 - React Native
 
@@ -93,84 +103,86 @@ The entire development journey is being documented publicly through daily Linked
 
 # 📁 Project Structure
 
-```
-MATELIOR/
-
-│── controllers/
-│── middleware/
-│── models/
-│── routes/
-│── utils/
+```text
+MATELIOR
+│
+├── controllers/
+├── middleware/
+├── models/
+├── routes/
+├── utils/
 │   └── response.js
-│── .env
-│── index.js
-│── package.json
-│── README.md
+│
+├── .env
+├── index.js
+├── package.json
+└── README.md
 ```
 
 ---
 
 # ✨ Features
 
-## Authentication
+## 🔐 Authentication
 
 - User Registration
 - User Login
-- Password Encryption
-- JWT Authentication
+- Secure Password Hashing
+- JWT-based Authentication
 - Protected Routes
 
 ---
 
-## Authorization
+## 👤 Authorization
 
 - Admin Role
 - Customer Role
+- Middleware-based Access Control
 - Admin-only Product & Category Management
-- Middleware-based Authorization
 
 ---
 
-## Products
+## 📦 Product Management
 
 - Add Product
 - Update Product
 - Delete Product
-- Get All Products
-- Get Product by ID
+- Retrieve All Products
+- Retrieve Product by ID
 - Search Products
 - Filter Products
 - Sort Products
 - Product Validation
-- Product Schema with Metadata
 - Category Population
 
 ---
 
-## Categories
+## 🗂 Category Management
 
 - Add Category
 - Update Category
 - Delete Category
-- Get All Categories
-- Get Category by ID
+- Retrieve All Categories
+- Retrieve Category by ID
 - Search Categories
 - Filter Categories
 - Sort Categories
 
 ---
 
-## Utilities
+## ⚙ Utilities
 
-- Standardized Success Responses
-- Standardized Error Responses
-- Standardized Failure Responses
+To keep controllers clean and maintain consistent API responses throughout the application:
+
+- `successResponse()`
+- `failedResponse()`
+- `errorResponse()`
 
 ---
 
-# 🔐 Security
+# 🔒 Security
 
-- Password Hashing using bcrypt
+- Password Hashing with bcrypt
 - JWT Authentication
 - Protected API Routes
 - Role-Based Authorization
@@ -178,54 +190,64 @@ MATELIOR/
 
 ---
 
-# 🗄 Database Design
-
-### User
-
-- Name
-- Email
-- Password
-- Role
-
-### Product
-
-- Name
-- Description
-- Category (Referenced)
-- Price
-- Discount
-- Stock
-- SKU
-- Images
-- Material
-- Colors
-- Weight
-- Tags
-
-### Category
-
-- Name
-- Description
-- Image
-- Status
-
----
-
-# 📌 API Endpoints
+# 🗄 Database Models
 
 ## User
 
+| Field | Type |
+|------|------|
+| Name | String |
+| Email | String |
+| Password | String |
+| Role | Admin / Customer |
+
+---
+
+## Product
+
+| Field | Type |
+|------|------|
+| Name | String |
+| Description | String |
+| Category | ObjectId (Category) |
+| Price | Number |
+| Discount Percentage | Number |
+| Stock | Number |
+| SKU | String |
+| Images | Array |
+| Material | String |
+| Colors | Array |
+| Weight | Number |
+| Tags | Array |
+
+---
+
+## Category
+
+| Field | Type |
+|------|------|
+| Name | String |
+| Description | String |
+| Image | String |
+| Status | Active / Hidden |
+
+---
+
+# 📡 API Endpoints
+
+## User Routes
+
 | Method | Endpoint | Access |
-|----------|----------|--------|
+|--------|----------|--------|
 | POST | `/user/register` | Public |
 | POST | `/user/login` | Public |
 
 ---
 
-## Products
+## Product Routes
 
 | Method | Endpoint | Access |
-|----------|----------|--------|
+|--------|----------|--------|
 | POST | `/product` | Admin |
 | PATCH | `/product/:id` | Admin |
 | DELETE | `/product/:id` | Admin |
@@ -234,10 +256,10 @@ MATELIOR/
 
 ---
 
-## Categories
+## Category Routes
 
 | Method | Endpoint | Access |
-|----------|----------|--------|
+|--------|----------|--------|
 | POST | `/category` | Admin |
 | PATCH | `/category/:id` | Admin |
 | DELETE | `/category/:id` | Admin |
@@ -248,34 +270,28 @@ MATELIOR/
 
 # 🚀 Getting Started
 
-## Clone Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/your-username/matelior.git
 ```
 
----
-
-## Install Dependencies
+### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
----
-
-## Configure Environment Variables
+### 3. Configure Environment Variables
 
 Create a `.env` file in the project root.
 
 ```env
-dbURL=your_mongodb_connection_string
-jwtSecret=your_secret_key
+dbURL=YOUR_MONGODB_CONNECTION_STRING
+jwtSecret=YOUR_JWT_SECRET
 ```
 
----
-
-## Run Development Server
+### 4. Start the Development Server
 
 ```bash
 npm start
@@ -283,11 +299,14 @@ npm start
 
 ---
 
-# 📅 Development Roadmap
+# 🗺 Development Roadmap
+
+## ✅ Completed
 
 - [x] Project Setup
+- [x] MongoDB Connection
 - [x] Authentication
-- [x] JWT Authorization
+- [x] Authorization
 - [x] Product CRUD
 - [x] Product Search
 - [x] Product Filtering
@@ -296,46 +315,61 @@ npm start
 - [x] Category Search
 - [x] Category Filtering
 - [x] Category Sorting
-- [x] MongoDB Relationships
+- [x] Product–Category Relationship
 - [x] Reusable Response Utilities
+
+## 🚧 In Progress
+
 - [ ] Pagination
+
+## 📅 Planned
+
+- [ ] Shopping Cart
 - [ ] Wishlist
-- [ ] Cart
 - [ ] Address Management
-- [ ] Orders
+- [ ] Order Management
 - [ ] Payment Integration
-- [ ] Reviews
+- [ ] Reviews & Ratings
 - [ ] Inventory Management
 - [ ] Coupons
+- [ ] Image Upload
 - [ ] Admin Dashboard
 - [ ] Deployment
 
 ---
 
-# 🎯 Project Goals
+# 🎯 Goals
 
-This project is focused on learning and implementing backend engineering concepts that resemble production-grade applications.
+MATELIOR is being built to gain hands-on experience in designing and developing production-ready backend systems.
 
-Areas of focus include:
+The project emphasizes:
 
 - Clean Architecture
-- REST API Design
 - Modular Code Organization
+- REST API Design
 - Authentication & Authorization
 - MongoDB Data Modeling
 - Scalable Project Structure
-- Maintainable Codebase
-- Security Best Practices
+- Secure Development Practices
+- Maintainable Code
 
 ---
 
 # 📈 Build in Public
 
-I'm documenting the complete development journey of MATELIOR through daily LinkedIn updates, sharing new features, architectural decisions, lessons learned, and improvements made along the way.
+Every stage of MATELIOR's development is shared through daily LinkedIn posts, covering:
+
+- Features implemented
+- Backend architecture
+- Engineering decisions
+- Challenges encountered
+- Lessons learned
+
+This repository grows alongside that journey.
 
 ---
 
-## ⭐ Support the Project
+## ⭐ Support
 
-If you found this project interesting or helpful, consider giving the repository a **⭐ Star**.
+If you find this project useful or interesting, consider giving it a **⭐ Star**. Your support is greatly appreciated!
 ````
