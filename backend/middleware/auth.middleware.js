@@ -1,35 +1,27 @@
 import User from "../models/user.models.js"
 import jwt from "jsonwebtoken"
+import { errorResponse, failedResponse } from "../utils/response.js"
 export const authMiddleware = async (req, res, next) => {
      const token = req.headers.authorization
-     
      if(!token) {
-         return res.status(401).json({
-             success : false,
-             message : "Access token not found"
-            })
+            failedResponse(res, 401, "Access token not found")
         }
+
         let tokenData;
         try {
             tokenData = jwt.verify(token, process.env.jwtSecret)
         } catch(err) {
-            res.status(500).json({
-                message : err.message
-            })
+            errorResponse(res, err)
         }
+
         if(!tokenData) {
-            return res.json({
-                success : false,
-                message : "Access token not valid"
-            })
+            failedResponse(res, 400, "Access token not valid")
         }
         const user = await User.findById(tokenData.id)
         if(!user) {
-            return res.status(404).json({
-                success : false,
-                message : "User not found"
-            })
+            failedResponse(res, 404, "User not found")
         }
+
         req.user = user
         next();
 }

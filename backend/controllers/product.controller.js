@@ -25,7 +25,6 @@ export const editProduct = async (req, res) => {
         if(!product) {
             failedResponse(res, 404, "product does not exist")
         }
-        console.log(id)
         const updatedProduct = await Product.findByIdAndUpdate(id, body)
         successResponse(res, 200, "prodcut updated", updatedProduct)
 

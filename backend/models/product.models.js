@@ -62,7 +62,12 @@ const productSchema = new mongoose.Schema({
         type : String,
         lowercase : true,
         trim : true
-    }]
+    }],
+    status : {
+        type : String,
+        enum : ["active", "hidden"],
+        default : "active"
+    }
 
 }, {
     timestamps : true

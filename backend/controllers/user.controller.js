@@ -25,8 +25,7 @@ export const register = async (req, res) => {
     const newUser = await User.create({
         name : body.name,
         email : body.email,
-        password : body.password,
-        role : "customer"
+        password : body.password
     });
     const tokenData = {
         id : newUser._id
