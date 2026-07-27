@@ -19,7 +19,6 @@ export const addToCart = async (req, res)=> {
         const cart = await Cart.findOne({
             user : user._id
         })
-        console.log(cart?.user)
         const items = cart?.items
         const inCart = items?.find(v=> v.product.equals(productId))
        if(cart) {
@@ -58,18 +57,83 @@ export const addToCart = async (req, res)=> {
     }
 }
 
+export const removeFromCart = async (req, res)=> {
+    try {
+        const productId = req.params.productId
+        const userId = req.user._id
+        const cart = await Cart.findOne({ user : userId })
+        const items = cart.items
+        const item = items.find((v)=>v.product.toString()===productId)
+        if(!item) {
+            failedResponse(res,200,"product does not exist")
+        }
+        if(item.quantity===1) {
+        const newItems = items.filter((v)=>v.product.toString() != productId)
+        const updatedCart = await Cart.findOneAndUpdate({ user : userId }, { items : newItems }, { returnDocument : "after" })
+        successResponse(res, 200, "product deleted from the cart", updatedCart)  
+        } else {
+            const updatedItem = {
+                product : item.product,
+                quantity : item.quantity-1
+            }
+            const newItems = items.map((v)=>v.product.toString()===productId ? updatedItem : v)
+            const updatedCart = await Cart.findOneAndUpdate({ user : userId }, { items : newItems }, { returnDocument : "after" })
+            successResponse(res, 200, "quantity reduced by 1", updatedCart)
+        }
+    } catch(err) {
+        errorResponse(res, err)
+    }
+}
+
 export const getCart = async (req, res)=> {
     try {
-        
+        const user = req.user
+        const userId = user._id
+        const cartItems = await Cart.findOne({
+            user : userId
+        })
+        if(!cartItems) {
+            failedResponse(res, 200, "Cart is empty!!!")
+        }
+        successResponse(res, 200, "cart items fetched", cartItems)
     } catch(err) {
         errorResponse(res, err)
     }
 }
 
 export const clearCart = async (req, res)=> {
-
+    try {
+        const userId = req.user._id
+        const cart = await Cart.findOne({
+            user : userId
+        })
+        if(!cart) {
+            failedResponse(res, 200, "Cart does not exist")
+        }
+        const deletedCart = await Cart.findOneAndDelete({ user : userId })
+        successResponse(res, 200, "Cart Deleted Successfully", deletedCart)
+    } catch(err) {
+        errorResponse(res, err)
+    }
 }
 
 export const deleteCartProduct = async (req, res)=> {
-
+    try {
+        const productId = req.params.productId
+        const userId = req.user._id
+        const cart = await Cart.findOne({ user : userId })
+        if(!cart) {
+            failedResponse(res, 200, "Cart does not exist")
+        }
+        const items = cart.items
+        const item = items.find((v)=> v.product.toString() === productId)
+        if(!item) {
+            failedResponse(res, 200, "product is not in the cart")
+        }
+        const newItems = items.filter((v)=>v.product.toString() != productId)
+        const updatedCart = await Cart.findOneAndUpdate({ user : userId }, { items : newItems }, { returnDocument : "after" })
+        successResponse(res, 200, "product deleted from the cart", updatedCart)
+    } catch(err) {
+        errorResponse(res, err)
+    }
 }
