@@ -57,7 +57,8 @@ export const removeFromWishlist = async (req, res)=>{
             if(inProducts) {
                 const newProducts = products.filter((v)=>v.toString()!=productId)
                 const updatedWishlist = await Wishlist.findOneAndUpdate({ user : userId }, { products : newProducts }, { returnDocument : "after"})
-                if(!newProducts.legth) {
+                console.log(!newProducts.length)
+                if(!newProducts.length) {
                     await Wishlist.findOneAndDelete({ user : userId })
                     console.log("error is here")
                 }
