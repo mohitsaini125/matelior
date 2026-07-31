@@ -1,6 +1,6 @@
 import express from "express"
 import { authMiddleware } from "../middleware/auth.middleware.js"
-import { addAddress, deleteAddress, getAddress, getAddressById, updateAddress } from "../controllers/address.controller.js"
+import { addAddress, deleteAddress, getAddress, getAddressById, setAddressDefault, updateAddress } from "../controllers/address.controller.js"
 
 const router = express.Router()
 
@@ -8,6 +8,7 @@ router.post("/", authMiddleware, addAddress)
 router.get("/", authMiddleware, getAddress)
 router.get("/:id", authMiddleware, getAddressById)
 router.patch("/:id", authMiddleware, updateAddress)
+router.patch("/:id/default", authMiddleware, setAddressDefault)
 router.delete("/:id", authMiddleware, deleteAddress)
 
 
