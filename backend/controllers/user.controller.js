@@ -62,7 +62,8 @@ export const login = async (req, res)=>{
     successResponse(res, 200, token, "logged in")
 
    } catch(err) {
-        errorResponse(res, err)
+        return errorResponse(res, err)
    }
 
 }
+

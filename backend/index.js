@@ -7,6 +7,7 @@ import categoryRouter from "./routes/category.routes.js"
 import cartRouter from "./routes/cart.routes.js"
 import wishlistRouter from "./routes/wishlist.routes.js"
 import addressRouter from "./routes/address.routes.js"
+import orderRouter from "./routes/order.routes.js"
 dotenv.config();
 
 const server = express();
@@ -18,6 +19,7 @@ server.use("/category", categoryRouter)
 server.use("/cart",cartRouter)
 server.use("/wishlist", wishlistRouter)
 server.use("/address", addressRouter)
+server.use("/order", orderRouter)
 
 mongoose.connect(process.env.dbURL).then(()=>{
     server.listen(3000, ()=>{

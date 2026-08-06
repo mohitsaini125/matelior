@@ -66,7 +66,7 @@ export const updateAddress = async (req, res)=>{
             return failedResponse(res, 404, "Address not found.")
         }
 
-        const updatedAddress = await Address.findOneAndUpdate(filter, updateData, { new : true })
+        const updatedAddress = await Address.findOneAndUpdate(filter, updateData, { returnDocument : "after" })
         return successResponse(res, 200, "Address updated successfully.", updatedAddress)
     } catch(err) {
         return errorResponse(res, err)
@@ -94,7 +94,7 @@ export const setAddressDefault = async (req, res)=> {
         let updatedAddress;
         await session.withTransaction(async ()=> {      //automatically commits on succeed and aborts on error
             await Address.findOneAndUpdate(currentDefaultFilter, { isDefault : false }, { session })
-            updatedAddress = await Address.findOneAndUpdate(targetAddressFilter, { isDefault : true }, { new : true, session })
+            updatedAddress = await Address.findOneAndUpdate(targetAddressFilter, { isDefault : true }, { returnDocument : "after", session })
         })
         return successResponse(res, 200, "Default address updated successfully.", updatedAddress)
 

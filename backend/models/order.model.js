@@ -7,8 +7,7 @@ const orderSchema = new mongoose.Schema({
         required : true,
         index : true
     },
-    orderItems : {
-        type : [
+    orderItems : [
         {
             product : {
                 type: mongoose.Schema.Types.ObjectId,
@@ -35,13 +34,6 @@ const orderSchema = new mongoose.Schema({
             }
         }
     ],
-    validate : {
-        validator : function(items) {
-            return Array.isArray(items) && items.length > 0;
-        },
-        message : "Order must contain atleast one item"
-    }
-},
     subTotal : {
         type : Number,
         required : true,
@@ -164,18 +156,32 @@ const orderSchema = new mongoose.Schema({
         },
         status : {
             type : String,
-            enum : ["not_requested", "requested", "approved", "rejected", "picked", "completed"],
-            default : "not_requested"
+            enum : ["requested", "approved", "rejected", "picked", "completed"],
         },
         requestedAt : Date,
         approvedAt : Date,
         completedAt : Date
     },
-    confirmedAt : Date,
-    estimatedDeliveryDate : Date,
-    packedAt : Date,
-    shippedAt : Date,
-    deliveredAt : Date,
+    confirmedAt : {
+        type : Date,
+        default : null
+    },
+    estimatedDeliveryDate : {
+        type : Date,
+        default : null
+    },
+    packedAt : {
+        type : Date,
+        default : null
+    },
+    shippedAt : {
+        type : Date,
+        default : null
+    },
+    deliveredAt : {
+        type : Date,
+        default : null
+    },
 
 }, {
     timestamps : true
