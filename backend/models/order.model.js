@@ -152,13 +152,21 @@ const orderSchema = new mongoose.Schema({
     returnInformation : {
         reason : {
             type : String,
-            trim : true
+            trim : true,
+            enum : [
+                    "damaged",
+                    "wrong_product",
+                    "quality_issue",
+                    "not_as_expected",
+                    "size_issue",
+                    "changed_mind",
+                    "other"
+                   ]
         },
         status : {
             type : String,
-            enum : ["requested", "approved", "rejected", "picked", "completed"],
+            enum : ["approved", "picked", "completed"],
         },
-        requestedAt : Date,
         approvedAt : Date,
         completedAt : Date
     },

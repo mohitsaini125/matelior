@@ -52,10 +52,11 @@ export const getProducts = async (req, res)=>{
         const { sort, order, category, sku, q } = req.query
         const sortOptions = {}
         const orderNumber = 1
+        
+       if(sort) {
         if(order == "desc") {
             orderNumber = -1
         }
-       if(sort) {
          if(sort == 'price') {
             sortOptions.price = orderNumber
         } else if (sort == 'category') {

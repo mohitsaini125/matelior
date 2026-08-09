@@ -175,24 +175,97 @@ export const createOrder = async (req, res)=> {
 }
 
 
+export const getOrder = async (req, res)=> {
+    try {
+        const userId = req.user._id
+        const { status, sort, order, q } = req.query
+        const sortOptions = {}
+        const orderNumber = 1
+        if (sort) {
+            if(order === "desc") {
+                orderNumber = -1
+            }
+            if(sort === "totalAmount") {
+                sortOptions.totalAmount = orderNumber
+            } else if (sort === "createdAt") {
+                sortOptions.createdAt = orderNumber
+            }
+        }
+
+        const filter = {
+            user : userId
+        }
+
+        if(status) filter.orderStatus = status
+
+        const orders = await Order
+        .find(filter)
+        .sort(sortOptions)
+        
+        if(orders.length === 0) {
+            return failedResponse(res, 404, "No orders placed till now")
+        }
+
+        return successResponse(res, 200, "fetched orders", orders)
+
+    } catch(err) {
+        return errorResponse(res, err)
+    }
+}
+
+
+export const getOrderById = async (req, res)=> {
+    try {
+        const orderId = req.params.orderId
+
+        const userId = req.user._id
+        const order = await Order.findOne({ user : userId, _id : orderId})
+        if(!order) {
+            return failedResponse(res, 404, "order does not exist")
+        }
+        return successResponse(res, 200, "Order details fetched", order)
+
+    } catch(err) {
+        errorResponse(res, err)
+    }
+}
+
+export const returnOrder = async (req, res)=> {
+    try {
+        const orderId = req.params.orderId
+        const userId = req.user._id
+        const returnReason = req.body.returnReason
+        const order = await Order.findOne({ user : userId, _id : orderId })
+        if(!order) {
+            return failedResponse(res, 404, "order does not exist")
+        }
+        if(order.returnInformation.status) {
+            return failedResponse(res, 409, "return already in process")
+        }
+        const updatedOrder = await Order.findOneAndUpdate({ user : userId, _id : orderId }, { returnInformation : { reason : returnReason, status : "approved", approvedAt : new Date() }}, { returnDocument : "after" })
+        return successResponse(res, 200, "order return accepted", updatedOrder)
+    } catch(err) {
+        errorResponse(res, err)
+    }
+}
 
 
 
 // CUSTOMER APIs
 
-// create order post-> /order
+// create order post-> /order            - done
 // => create a new order from the user's cart
 
-// get order get-> /Order
+// get order get-> /Order                - done
 // return all the orders of the logged in user (pagination, sort, filter by status)
 
-// get orderById get-> /order/:orderId
+// get orderById get-> /order/:orderId   - done
 // returns complete details of one order
 
 // cancel order patch-> /order/:orderId/cancel
 // customers can cancel only if the order is eligible to get cancelled
 
-// request return patch-> /order/:orderId/return
+// request return patch-> /order/:orderId/return   - done
 // creates a return request
 
 
