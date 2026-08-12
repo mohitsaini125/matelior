@@ -64,7 +64,17 @@ const orderSchema = new mongoose.Schema({
     },
     orderStatus : {
         type : String,
-        enum : ["pending", "confirmed", "packed", "shipped", "out for delivery", "delivered", "cancelled", "returned", "refunded"],
+        enum : [
+            "pending",
+            "confirmed",
+            "packed",
+            "shipped",
+            "out for delivery",
+            "delivered",
+            "cancelled",
+            "returned",
+            "refunded"
+        ],
         default : "pending",
         index : true
     },
@@ -117,7 +127,7 @@ const orderSchema = new mongoose.Schema({
         },
         paymentStatus : {
             type : String,
-            enum : ["pending", "paid", "failed", "refunded"],
+            enum : ["pending", "paid", "refunded"],
             required : true,
             default : "pending"
         },
@@ -141,13 +151,26 @@ const orderSchema = new mongoose.Schema({
     cancellationInformation : {
         reason : {
             type : String,
-            trim : true
+            trim : true,
+            enum : [
+                "changed_mind",
+                "ordered_by_mistake",
+                "found_better_price",
+                "delivery_too_late",
+                "product_no_longer_needed",
+                "other"
+            ],
+            required : true
         },
         cancelledBy : {
             type : String,
-            enum : ["user", "admin"]
+            enum : ["user", "admin"],
+            required : true
         },
-        cancelledAt : Date
+        cancelledAt : {
+            type : Date,
+            required : true
+        }
     },
     returnInformation : {
         reason : {
@@ -165,7 +188,7 @@ const orderSchema = new mongoose.Schema({
         },
         status : {
             type : String,
-            enum : ["approved", "picked", "completed"],
+            enum : ["requested", "picked", "completed"],
         },
         approvedAt : Date,
         completedAt : Date

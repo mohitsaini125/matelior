@@ -5,6 +5,9 @@ import { errorResponse, failedResponse, successResponse } from "../utils/respons
 import Order from "../models/order.model.js";
 import generateOrderNumber from "../utils/orderNumber.js";
 import Product from "../models/product.models.js";
+import { updateStatus } from "../utils/updateStatus.js";
+
+//User API controllers
 
 export const createOrder = async (req, res)=> {
     let session;
@@ -242,13 +245,120 @@ export const returnOrder = async (req, res)=> {
         if(order.returnInformation.status) {
             return failedResponse(res, 409, "return already in process")
         }
-        const updatedOrder = await Order.findOneAndUpdate({ user : userId, _id : orderId }, { returnInformation : { reason : returnReason, status : "approved", approvedAt : new Date() }}, { returnDocument : "after" })
-        return successResponse(res, 200, "order return accepted", updatedOrder)
+        if(order.orderStatus === "delivered") {
+            const updatedOrder = await Order.findOneAndUpdate(
+                { user : userId, _id : orderId },
+                {
+                    returnInformation : {
+                        reason : returnReason,
+                        status : "approved",
+                        approvedAt : new Date()
+                    },
+                    orderStatus : "returned"   
+                },
+                { returnDocument : "after" }
+            )
+            return successResponse(res, 200, "order return accepted", updatedOrder)
+        }
+        return failedResponse(res, 400, "return request not valid (delivered products only !)")
     } catch(err) {
         errorResponse(res, err)
     }
 }
 
+export const cancelOrder = async (req, res)=> {
+    try {
+        const orderId = req.params.orderId
+        const userId = req.user._id
+        const cancellationReason = req.body.cancellationReason
+        const order = await Order.findOne({ user: userId, _id: orderId })
+        if(!order) {
+            return failedResponse(res, 404, "order does not exist")
+        }
+        if(order.cancellationInformation.reason) {
+            return failedResponse(res, 409, "order already cancelled")
+        }
+        const isCancellable = order.orderStatus === "pending"
+        || order.orderStatus === "confirmed"
+        || order.orderStatus === "packed"
+        || order.orderStatus === "shipped"
+        || order.orderStatus === "out for delivery"
+        if(isCancellable) {
+            const updatedOrder = await Order.findOneAndUpdate(
+                { user: userId, _id: orderId },
+                { cancellationInformation : {
+                    reason : cancellationReason,
+                    cancelledBy : "user",
+                    cancelledAt : new Date()
+                },
+                orderStatus : "cancelled"
+            },
+                { returnDocument : "after" }
+            )
+            return successResponse(res, 200, "order cancelled successfully", updatedOrder)
+        }
+        return failedResponse(res, 200, "order request not valid")
+
+    } catch(err) {
+        return errorResponse(err)
+    }
+}
+
+
+//Admin API controllers
+
+const transitionMap = {
+    "pending" : "confirmed",
+    "confirmed" : "packed",
+    "packed" : "shipped",
+    "shipped" : "out for delivery",
+    "out for delivery" : "delivered",
+
+}
+const updateObject = {
+    "confirmed" : "confirmedAt",
+    "packed" : "packedAt",
+    "shipped" : "shippedAt",
+    "delivered" : "deliveredAt",
+}
+export const updateOrderStatus = async (req, res)=> {
+    try {
+        const orderId = req.params.orderId
+        const requestedStatus = req.body.orderStatus
+        const order = await Order.findById(orderId)
+        if(!order) {
+            return failedResponse(res, 404, "order does not exist")
+        }
+        const currentStatus = order.orderStatus
+        const allowedNextStatus = transitionMap[currentStatus]
+
+        if(requestedStatus !== allowedNextStatus) {
+            return failedResponse(res, 400, "Invalid status transition.")
+        }
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            {
+                orderStatus : requestedStatus,
+                [updateObject[requestedStatus]] : new Date()
+            },
+            {
+                returnDocument : "after"
+            }
+        )
+        return successResponse(res, 200, "order status updated.")
+    } catch(err) {
+        return errorResponse(res, err)
+    }
+}
+
+export const updateReturnStatus = async (req, res)=> {
+    try {
+
+    } catch(err) {
+        return errorResponse(res, err)
+    }
+}
 
 
 // CUSTOMER APIs
@@ -262,7 +372,7 @@ export const returnOrder = async (req, res)=> {
 // get orderById get-> /order/:orderId   - done
 // returns complete details of one order
 
-// cancel order patch-> /order/:orderId/cancel
+// cancel order patch-> /order/:orderId/cancel   -done
 // customers can cancel only if the order is eligible to get cancelled
 
 // request return patch-> /order/:orderId/return   - done
@@ -273,14 +383,12 @@ export const returnOrder = async (req, res)=> {
 
 // ADMIN APIs
 
-// get all orders get-> /admin/order
+// get all orders get-> /admin/order           
 // get all the orders in order collection (with pagination, filter, sort, search)
 
 // get order details get-> /admin/order/:orderId
 // get all the details of a particular order
 
 // Update order status patch-> /admin/order/:orderId/status (pending -> confirmed -> packed -> shipped -> out for delivery -> delivered)
-
-// approve or reject return patch-> /admin/order/:orderId/return (requested -> approved or rejected)
 
 // refund patch-> /admin/order/:orderId/refund (paymentStatus -> refunded)
