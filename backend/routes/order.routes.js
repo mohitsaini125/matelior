@@ -6,7 +6,8 @@ import {
     getOrder,
     getOrderById,
     returnOrder,
-    updateOrderStatus
+    updateOrderStatus,
+    updateReturnStatus
 } from "../controllers/order.controller.js";
 
 const router = express.Router()
@@ -24,5 +25,13 @@ router.patch("/admin/:orderId/status",
     isAdminMiddleware,
     updateOrderStatus
 )
+
+router.patch("/admin/:orderId/return",
+    authMiddleware,
+    isAdminMiddleware,
+    updateReturnStatus
+)
+
+
 
 export default router;

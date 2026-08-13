@@ -160,16 +160,13 @@ const orderSchema = new mongoose.Schema({
                 "product_no_longer_needed",
                 "other"
             ],
-            required : true
         },
         cancelledBy : {
             type : String,
-            enum : ["user", "admin"],
-            required : true
+            enum : ["user", "admin"]
         },
         cancelledAt : {
             type : Date,
-            required : true
         }
     },
     returnInformation : {
@@ -188,9 +185,19 @@ const orderSchema = new mongoose.Schema({
         },
         status : {
             type : String,
-            enum : ["requested", "picked", "completed"],
+            enum : ["requested", "approved", "picked", "completed"],
         },
+        requestedAt : Date,
         approvedAt : Date,
+        pickedAt : Date,
+        completedAt : Date
+    },
+    refundInformation : {
+        status : {
+            type : String,
+            enum : ["processing", "refunded"]
+        },
+        initiatedAt : Date,
         completedAt : Date
     },
     confirmedAt : {

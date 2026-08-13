@@ -5,7 +5,6 @@ import { errorResponse, failedResponse, successResponse } from "../utils/respons
 import Order from "../models/order.model.js";
 import generateOrderNumber from "../utils/orderNumber.js";
 import Product from "../models/product.models.js";
-import { updateStatus } from "../utils/updateStatus.js";
 
 //User API controllers
 
@@ -164,7 +163,7 @@ export const createOrder = async (req, res)=> {
         }
 
         cart.items = []
-        cart.save({ session })
+        await cart.save({ session })
 
             return successResponse(res, 201, "Order created successfully", order[0])
         })
@@ -181,9 +180,9 @@ export const createOrder = async (req, res)=> {
 export const getOrder = async (req, res)=> {
     try {
         const userId = req.user._id
-        const { status, sort, order, q } = req.query
+        const { status, sort, order} = req.query
         const sortOptions = {}
-        const orderNumber = 1
+        let orderNumber = 1
         if (sort) {
             if(order === "desc") {
                 orderNumber = -1
@@ -251,14 +250,13 @@ export const returnOrder = async (req, res)=> {
                 {
                     returnInformation : {
                         reason : returnReason,
-                        status : "approved",
-                        approvedAt : new Date()
+                        status : "requested",
+                        requestedAt : new Date()
                     },
-                    orderStatus : "returned"   
                 },
                 { returnDocument : "after" }
             )
-            return successResponse(res, 200, "order return accepted", updatedOrder)
+            return successResponse(res, 200, "return request sent", updatedOrder)
         }
         return failedResponse(res, 400, "return request not valid (delivered products only !)")
     } catch(err) {
@@ -270,24 +268,20 @@ export const cancelOrder = async (req, res)=> {
     try {
         const orderId = req.params.orderId
         const userId = req.user._id
-        const cancellationReason = req.body.cancellationReason
         const order = await Order.findOne({ user: userId, _id: orderId })
         if(!order) {
             return failedResponse(res, 404, "order does not exist")
         }
-        if(order.cancellationInformation.reason) {
+        if(order.orderStatus === "cancelled") {
             return failedResponse(res, 409, "order already cancelled")
         }
-        const isCancellable = order.orderStatus === "pending"
-        || order.orderStatus === "confirmed"
-        || order.orderStatus === "packed"
-        || order.orderStatus === "shipped"
-        || order.orderStatus === "out for delivery"
+        const cancellableStatus = ["pending", "confirmed", "packed"]
+        const isCancellable = cancellableStatus.find(s => s === order.orderStatus)
         if(isCancellable) {
             const updatedOrder = await Order.findOneAndUpdate(
                 { user: userId, _id: orderId },
                 { cancellationInformation : {
-                    reason : cancellationReason,
+                    reason : req.body.cancellationReason,
                     cancelledBy : "user",
                     cancelledAt : new Date()
                 },
@@ -300,27 +294,14 @@ export const cancelOrder = async (req, res)=> {
         return failedResponse(res, 200, "order request not valid")
 
     } catch(err) {
-        return errorResponse(err)
+        return errorResponse(res, err)
     }
 }
 
 
 //Admin API controllers
 
-const transitionMap = {
-    "pending" : "confirmed",
-    "confirmed" : "packed",
-    "packed" : "shipped",
-    "shipped" : "out for delivery",
-    "out for delivery" : "delivered",
 
-}
-const updateObject = {
-    "confirmed" : "confirmedAt",
-    "packed" : "packedAt",
-    "shipped" : "shippedAt",
-    "delivered" : "deliveredAt",
-}
 export const updateOrderStatus = async (req, res)=> {
     try {
         const orderId = req.params.orderId
@@ -329,8 +310,41 @@ export const updateOrderStatus = async (req, res)=> {
         if(!order) {
             return failedResponse(res, 404, "order does not exist")
         }
+
+        const transitionMap = {
+        "pending" : "confirmed",
+        "confirmed" : "packed",
+        "packed" : "shipped",
+        "shipped" : "out for delivery",
+        "out for delivery" : "delivered",
+        }
+        const updateObject = {
+        "confirmed" : "confirmedAt",
+        "packed" : "packedAt",
+        "shipped" : "shippedAt",
+        "delivered" : "deliveredAt",
+        }
+
         const currentStatus = order.orderStatus
         const allowedNextStatus = transitionMap[currentStatus]
+        const cancellableStatus = ["pending", "confirmed", "packed"]
+        if(requestedStatus === "cancelled" && cancellableStatus.includes(currentStatus)) {
+            const updatedOrder = await Order.findByIdAndUpdate(
+                orderId,
+                {
+                    orderStatus : "cancelled",
+                    cancellationInformation : {
+                        reason : req.body.cancelReason,
+                        cancelledBy : "admin",
+                        cancelledAt : new Date(),
+                    }
+                },
+                {
+                    returnDocument : "after"
+                }
+        )
+            return successResponse(res, 200, "order status updated.")
+        }
 
         if(requestedStatus !== allowedNextStatus) {
             return failedResponse(res, 400, "Invalid status transition.")
@@ -354,6 +368,53 @@ export const updateOrderStatus = async (req, res)=> {
 
 export const updateReturnStatus = async (req, res)=> {
     try {
+        const orderId = req.params.orderId
+        const order = await Order.findById(orderId)
+        if(!order) {
+            return failedResponse(res, 404, "order does not exist")
+        }
+        if(!order.returnInformation.status) {
+            return failedResponse(res, 400, "return request does not exist")
+        }
+        const statusObj = {
+            requested : "approved",
+            approved : "picked",
+            picked : "completed"
+        }
+
+        const updateObject = {
+            approved : "approvedAt",
+            picked : "pickedAt",
+            completed : "completedAt"
+        }
+
+        const requestedStatus = req.body.status
+        const currentStatus = order.returnInformation.status
+        const allowedNextStatus = statusObj[currentStatus]
+        if(requestedStatus !== allowedNextStatus) {
+            return failedResponse(res, 400, "invalid status transition")
+        }
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            {
+                "returnInformation.status" : requestedStatus,
+                [`returnInformation.${updateObject[requestedStatus]}`] : new Date
+            },
+            {
+                returnDocument : "after"
+            }
+        )
+
+        if(requestedStatus === "completed") {
+            await Order.findByIdAndUpdate(
+                orderId,
+                {
+                    "refundInformation.status" : "processing",
+                    "refundInformation.initiatedAt" : new Date()
+                }
+            )
+        }
+        return successResponse(res, 200, "return status updated", updatedOrder)
 
     } catch(err) {
         return errorResponse(res, err)
