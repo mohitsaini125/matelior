@@ -1,37 +1,45 @@
-import express from "express"
-import { authMiddleware, isAdminMiddleware } from "../middleware/auth.middleware.js"
+import express from "express";
+import { authMiddleware, isAdmin } from "../middleware/auth.middleware.js";
 import {
     cancelOrder,
     createOrder,
+    getAllOrdersAdmin,
     getOrder,
     getOrderById,
     returnOrder,
     updateOrderStatus,
-    updateReturnStatus
+    updateRefundStatus,
+    updateReturnStatus,
 } from "../controllers/order.controller.js";
 
-const router = express.Router()
+const router = express.Router();
 
-//User APIs
-router.post("/", authMiddleware, createOrder)
-router.get("/", authMiddleware, getOrder)
-router.get("/:orderId", authMiddleware, getOrderById)
-router.patch("/:orderId/return", authMiddleware, returnOrder)
-router.patch("/:orderId/cancel", authMiddleware, cancelOrder)
-
-//Admin APIs
-router.patch("/admin/:orderId/status",
+// Admin APIs (placed before /:orderId to prevent parameter capture)
+router.get("/admin", authMiddleware, isAdmin, getAllOrdersAdmin);
+router.patch(
+    "/admin/:orderId/status",
     authMiddleware,
-    isAdminMiddleware,
+    isAdmin,
     updateOrderStatus
-)
-
-router.patch("/admin/:orderId/return",
+);
+router.patch(
+    "/admin/:orderId/return",
     authMiddleware,
-    isAdminMiddleware,
+    isAdmin,
     updateReturnStatus
-)
+);
+router.patch(
+    "/admin/:orderId/refund",
+    authMiddleware,
+    isAdmin,
+    updateRefundStatus
+);
 
-
+// Customer APIs
+router.post("/", authMiddleware, createOrder);
+router.get("/", authMiddleware, getOrder);
+router.get("/:orderId", authMiddleware, getOrderById);
+router.patch("/:orderId/return", authMiddleware, returnOrder);
+router.patch("/:orderId/cancel", authMiddleware, cancelOrder);
 
 export default router;

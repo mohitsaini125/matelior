@@ -1,88 +1,93 @@
-import Wishlist from "../models/wishlist.model.js"
-import { errorResponse, failedResponse, successResponse } from "../utils/response.js"
+import Wishlist from "../models/wishlist.model.js";
+import Product from "../models/product.models.js";
+import { errorResponse, failedResponse, successResponse } from "../utils/response.js";
 
-export const addToWishlist = async (req, res)=>{
+async function getPopulatedWishlistProducts(userId) {
+    const wishlist = await Wishlist.findOne({ user: userId }).populate("products");
+    if (!wishlist || !wishlist.products) return [];
+    return wishlist.products.filter((p) => p && p._id);
+}
+
+export const addToWishlist = async (req, res) => {
     try {
-        const productId = req.params.productId
-        const userId = req.user._id
-        const wishlist = await Wishlist.findOne({
-            user : userId
-        })
-        if(!wishlist) {
-            const wishlist = await Wishlist.create({
-                user : userId,
-                products : [productId]
-            })
-            successResponse(res, 201, "wishlist created and product added", wishlist.products)
+        const productId = req.body?.productId || req.params?.productId;
+        const userId = req.user._id;
+
+        if (!productId) {
+            return failedResponse(res, 400, "Product ID is required");
+        }
+
+        const productExists = await Product.findById(productId);
+        if (!productExists) {
+            return failedResponse(res, 404, "Product not found");
+        }
+
+        let wishlist = await Wishlist.findOne({ user: userId });
+        if (!wishlist) {
+            wishlist = await Wishlist.create({
+                user: userId,
+                products: [productId],
+            });
         } else {
-            const products = wishlist.products
-            const inProduct = products.find((v)=>v.toString()==productId)
-            if(inProduct) {
-                failedResponse(res, 200, "item already in wishlist")
-            } else {
-                products.push(productId)
-                const updatedWishlist = await Wishlist.findOneAndUpdate({ user : userId }, { products : products }, { returnDocument: "after" })
-                successResponse(res, 200, "product added to wishlist", updatedWishlist.products)
+            const products = wishlist.products || [];
+            const inProduct = products.some((v) => v && v.toString() === productId.toString());
+            if (!inProduct) {
+                wishlist.products.push(productId);
+                await wishlist.save();
             }
         }
-    } catch(err) {
-        errorResponse(res, err)
-    }
-}
 
-export const readWishlist = async (req, res)=>{
-    try {
-        const userId = req.user._id
-        const wishlist = await Wishlist.findOne({ user : userId }).populate("products", "name")
-        if(!wishlist) {
-            failedResponse(res, 200, "wishlist does not exist")
-        } else {
-            successResponse(res, 200, "fetched wishlist", wishlist.products)
-        }
-    } catch(err) {
-        errorResponse(res, err)
+        const populatedList = await getPopulatedWishlistProducts(userId);
+        return successResponse(res, 200, "Product added to wishlist", populatedList);
+    } catch (err) {
+        console.error("addToWishlist error:", err);
+        return errorResponse(res, err);
     }
-}
+};
 
-export const removeFromWishlist = async (req, res)=>{
+export const readWishlist = async (req, res) => {
     try {
-        const productId = req.params.productId
-        const userId = req.user._id
-        const wishlist = await Wishlist.findOne({ user : userId })
-        if(!wishlist) {
-            failedResponse(res, 200, "wishlist does not exist")
-        } else {
-            const products = wishlist.products
-            const inProducts = products.find((v)=>v.toString()==productId)
-            if(inProducts) {
-                const newProducts = products.filter((v)=>v.toString()!=productId)
-                const updatedWishlist = await Wishlist.findOneAndUpdate({ user : userId }, { products : newProducts }, { returnDocument : "after"})
-                console.log(!newProducts.length)
-                if(!newProducts.length) {
-                    await Wishlist.findOneAndDelete({ user : userId })
-                    console.log("error is here")
-                }
-                successResponse(res, 200, "product removed from wishlist", updatedWishlist.products)
-            } else {
-                failedResponse(res, 200, "product does not exist in wishlist")
-            }
-        }
-    } catch(err) {
-        errorResponse(res, err)
+        const userId = req.user._id;
+        const populatedList = await getPopulatedWishlistProducts(userId);
+        return successResponse(res, 200, "Fetched wishlist", populatedList);
+    } catch (err) {
+        console.error("readWishlist error:", err);
+        return errorResponse(res, err);
     }
-}
+};
 
-export const clearWishlist = async (req, res)=>{
+export const removeFromWishlist = async (req, res) => {
     try {
-        const userId = req.user._id
-        const wishlist = await Wishlist.findOne({ user : userId })
-        if(!wishlist) {
-            failedResponse(res, 200, "wishlist does not exist")
-        } else {
-            const deletedWishlist = await Wishlist.findOneAndDelete({ user : userId })
-            successResponse(res, 200, "wishlist cleared!!")
+        const productId = req.params?.productId || req.body?.productId;
+        const userId = req.user._id;
+
+        if (!productId) {
+            return failedResponse(res, 400, "Product ID is required");
         }
-    } catch(err) {
-        errorResponse(res, err)
+
+        const wishlist = await Wishlist.findOne({ user: userId });
+        if (wishlist && wishlist.products) {
+            wishlist.products = wishlist.products.filter(
+                (v) => v && v.toString() !== productId.toString()
+            );
+            await wishlist.save();
+        }
+
+        const populatedList = await getPopulatedWishlistProducts(userId);
+        return successResponse(res, 200, "Product removed from wishlist", populatedList);
+    } catch (err) {
+        console.error("removeFromWishlist error:", err);
+        return errorResponse(res, err);
     }
-}
+};
+
+export const clearWishlist = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        await Wishlist.findOneAndDelete({ user: userId });
+        return successResponse(res, 200, "Wishlist cleared successfully", []);
+    } catch (err) {
+        console.error("clearWishlist error:", err);
+        return errorResponse(res, err);
+    }
+};

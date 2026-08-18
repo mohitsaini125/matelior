@@ -7,6 +7,11 @@ const categorySchema = new mongoose.Schema({
         unique : true,
         trim : true
     },
+    slug : {
+        type : String,
+        trim : true,
+        lowercase : true
+    },
     image : String,
     description : String,
     status : {
@@ -14,7 +19,7 @@ const categorySchema = new mongoose.Schema({
         enum : ["active", "hidden"],
         default : "active"
     }
-})
+}, { timestamps: true })
 
 const Category = mongoose.model("Category", categorySchema)
 

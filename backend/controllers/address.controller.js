@@ -1,152 +1,173 @@
-import Address from "../models/address.model.js"
-import { errorResponse, failedResponse, successResponse } from "../utils/response.js"
-import mongoose from "mongoose"
+import Address from "../models/address.model.js";
+import { errorResponse, failedResponse, successResponse } from "../utils/response.js";
+import mongoose from "mongoose";
 
-export const addAddress = async (req, res)=> {
-    let session;
-    try {
-        const userId = req.user._id
-        const { fullName, phone, addressLine1, addressLine2, city, country, pincode, addressType } = req.body
-        if(!fullName || !phone || !addressLine1 || !city || !country || !pincode) {
-            return failedResponse(res, 400, "Full name, phone, address line 1, city, country and pincode are required.")
-        }
-        const addresses = await Address.find({ user : userId })
-        const isDefault = addresses.length === 0 || req.body.isDefault === true
-        
-        let address
-        session = await mongoose.startSession()
-        await session.withTransaction(async ()=> {
-            if(isDefault && addresses.length) {
-                await Address.findOneAndUpdate({ user : userId, isDefault : true }, { isDefault : false }, { session })
-            }
-            address = new Address({
-                    user : req.user._id,
-                    ...req.body,
-                    isDefault
-                })
-            await address.save({ session })
-        })
-        return successResponse(res, 201, "Address added", address)
-
-    } catch(err) {
-        return errorResponse(res, err)
-    } finally {
-        if(session) {
-            await session.endSession()
-        }
-    }
+function formatAddress(doc) {
+    if (!doc) return null;
+    const obj = doc.toObject ? doc.toObject() : { ...doc };
+    const pin = obj.pincode || obj.postalCode || "";
+    obj.pincode = pin;
+    obj.postalCode = pin;
+    return obj;
 }
 
-export const updateAddress = async (req, res)=>{
+export const addAddress = async (req, res) => {
+    let session;
     try {
-        const id = req.params.id
-        const filter = {
-            user : req.user._id,
-            _id : id
-        }
-        if("isDefault" in req.body) {
-            return failedResponse(res, 400, "Use the dedicated endpoint to change the default address.")
-        }
-        const updateData = {
-            ...req.body
+        const userId = req.user._id;
+        const body = req.body || {};
+        const fullName = body.fullName?.trim();
+        const phone = body.phone?.trim();
+        const addressLine1 = body.addressLine1?.trim();
+        const addressLine2 = body.addressLine2?.trim() || "";
+        const city = body.city?.trim();
+        const state = body.state?.trim() || "Default State";
+        const country = body.country?.trim() || "India";
+        const pincode = (body.pincode || body.postalCode || "").trim();
+        const addressType = body.addressType || "home";
+
+        if (!fullName || !phone || !addressLine1 || !city || !pincode) {
+            return failedResponse(res, 400, "Full name, phone, address, city, and postal code are required.");
         }
 
+        const addresses = await Address.find({ user: userId });
+        const isDefault = addresses.length === 0 || body.isDefault === true;
+
+        session = await mongoose.startSession();
+        let savedAddress;
+
+        await session.withTransaction(async () => {
+            if (isDefault && addresses.length) {
+                await Address.updateMany({ user: userId, isDefault: true }, { isDefault: false }, { session });
+            }
+            const address = new Address({
+                user: userId,
+                fullName,
+                phone,
+                addressLine1,
+                addressLine2,
+                city,
+                state,
+                country,
+                pincode,
+                addressType,
+                isDefault,
+            });
+            savedAddress = await address.save({ session });
+        });
+
+        return successResponse(res, 201, "Address added", formatAddress(savedAddress));
+    } catch (err) {
+        console.error("addAddress error:", err);
+        return errorResponse(res, err);
+    } finally {
+        if (session) {
+            await session.endSession();
+        }
+    }
+};
+
+export const updateAddress = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const filter = { user: req.user._id, _id: id };
+        const body = req.body || {};
+
+        if (body.postalCode && !body.pincode) {
+            body.pincode = body.postalCode;
+        }
+
+        const updateData = { ...body };
         delete updateData.user;
         delete updateData._id;
         delete updateData.__v;
         delete updateData.createdAt;
         delete updateData.updatedAt;
 
-        if(Object.keys(req.body).length === 0) {
-            return failedResponse(res, 400, "Update data not found in body.")
-        }
-        
-        const address = await Address.findOne(filter)
-        if(!address) {
-            return failedResponse(res, 404, "Address not found.")
+        const updatedAddress = await Address.findOneAndUpdate(filter, updateData, { new: true });
+        if (!updatedAddress) {
+            return failedResponse(res, 404, "Address not found.");
         }
 
-        const updatedAddress = await Address.findOneAndUpdate(filter, updateData, { returnDocument : "after" })
-        return successResponse(res, 200, "Address updated successfully.", updatedAddress)
-    } catch(err) {
-        return errorResponse(res, err)
+        return successResponse(res, 200, "Address updated successfully.", formatAddress(updatedAddress));
+    } catch (err) {
+        console.error("updateAddress error:", err);
+        return errorResponse(res, err);
     }
-}
+};
 
-export const setAddressDefault = async (req, res)=> {
-    let session
+export const setAddressDefault = async (req, res) => {
+    let session;
     try {
-        
-        const id = req.params.id
-        const userId = req.user._id
-        const currentDefaultFilter = { user : userId, isDefault : true }
-        const targetAddressFilter = { user : userId, _id : id }
-        const address = await Address.findOne(targetAddressFilter)   //the null argument is otherwise used to mention the fields to fetch
-        if(!address) {
-            return failedResponse(res, 404, "Address not found.")
+        const id = req.params.id;
+        const userId = req.user._id;
+        const targetAddress = await Address.findOne({ user: userId, _id: id });
+
+        if (!targetAddress) {
+            return failedResponse(res, 404, "Address not found.");
         }
-        if(address.isDefault) {
-            return failedResponse(res, 409, "Address is already the default.")
-        }
-        
+
         session = await mongoose.startSession();
-
         let updatedAddress;
-        await session.withTransaction(async ()=> {      //automatically commits on succeed and aborts on error
-            await Address.findOneAndUpdate(currentDefaultFilter, { isDefault : false }, { session })
-            updatedAddress = await Address.findOneAndUpdate(targetAddressFilter, { isDefault : true }, { returnDocument : "after", session })
-        })
-        return successResponse(res, 200, "Default address updated successfully.", updatedAddress)
 
-    } catch(err) {
-        return errorResponse(res, err)
+        await session.withTransaction(async () => {
+            await Address.updateMany({ user: userId }, { isDefault: false }, { session });
+            updatedAddress = await Address.findOneAndUpdate(
+                { user: userId, _id: id },
+                { isDefault: true },
+                { new: true, session }
+            );
+        });
+
+        return successResponse(res, 200, "Default address updated successfully.", formatAddress(updatedAddress));
+    } catch (err) {
+        console.error("setAddressDefault error:", err);
+        return errorResponse(res, err);
     } finally {
-        if(session) {
-            await session.endSession()
+        if (session) {
+            await session.endSession();
         }
     }
-}
+};
 
-export const deleteAddress = async (req, res)=> {
+export const deleteAddress = async (req, res) => {
     try {
-        const id = req.params.id
-        const address = await Address.findOne({ user : req.user._id, _id : id })
-        if(!address) {
-            return failedResponse(res, 404, "Address not found.")
+        const id = req.params.id;
+        const address = await Address.findOne({ user: req.user._id, _id: id });
+        if (!address) {
+            return failedResponse(res, 404, "Address not found.");
         }
-        if(address.isDefault === true) {
-            return failedResponse(res, 409, "Cannot delete the default address. Please set other address as default first.")
-        }
-        const deletedAddress = await Address.findOneAndDelete({ user : req.user._id, _id : id})
-        return successResponse(res, 200, "Address deleted", deletedAddress)
-    } catch(err) {
-        return errorResponse(res, err)
-    }
-}
 
-export const getAddress = async (req, res)=> {
+        const deletedAddress = await Address.findOneAndDelete({ user: req.user._id, _id: id });
+        return successResponse(res, 200, "Address deleted", formatAddress(deletedAddress));
+    } catch (err) {
+        console.error("deleteAddress error:", err);
+        return errorResponse(res, err);
+    }
+};
+
+export const getAddress = async (req, res) => {
     try {
-        const userId = req.user._id
-        const addresses = await Address.find({ user : userId })
-        if(!addresses.length) {
-            return failedResponse(res, 404, "Address not found.")
-        }
-        return successResponse(res, 200, "addresses fetched", addresses)
-    } catch(err) {
-        return errorResponse(res, err)
+        const userId = req.user._id;
+        const addresses = await Address.find({ user: userId }).sort({ isDefault: -1, createdAt: -1 });
+        const formatted = addresses.map(formatAddress);
+        return successResponse(res, 200, "addresses fetched", formatted);
+    } catch (err) {
+        console.error("getAddress error:", err);
+        return errorResponse(res, err);
     }
-}
+};
 
-
-export const getAddressById = async (req, res)=> {
+export const getAddressById = async (req, res) => {
     try {
-        const id = req.params.id
-        const address = await Address.findOne({ user : req.user._id, _id : id })
-        if(!address) {
-            return failedResponse(res, 404, "Address not found.")
+        const id = req.params.id;
+        const address = await Address.findOne({ user: req.user._id, _id: id });
+        if (!address) {
+            return failedResponse(res, 404, "Address not found.");
         }
-        return successResponse(res, 200, "address fetched", address)
-    } catch(err) {
-        return errorResponse(res, err)
+        return successResponse(res, 200, "address fetched", formatAddress(address));
+    } catch (err) {
+        console.error("getAddressById error:", err);
+        return errorResponse(res, err);
     }
-}
+};

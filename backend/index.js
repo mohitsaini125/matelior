@@ -1,30 +1,66 @@
-import express from "express"
-import mongoose from "mongoose"
-import dotenv from "dotenv"
-import userRouter from "./routes/user.routes.js"
-import productRouter from "./routes/product.routes.js"
-import categoryRouter from "./routes/category.routes.js"
-import cartRouter from "./routes/cart.routes.js"
-import wishlistRouter from "./routes/wishlist.routes.js"
-import addressRouter from "./routes/address.routes.js"
-import orderRouter from "./routes/order.routes.js"
-dotenv.config();
+import "dotenv/config";
+import express from "express";
+import mongoose from "mongoose";
+import userRouter from "./routes/user.routes.js";
+import productRouter from "./routes/product.routes.js";
+import categoryRouter from "./routes/category.routes.js";
+import cartRouter from "./routes/cart.routes.js";
+import wishlistRouter from "./routes/wishlist.routes.js";
+import addressRouter from "./routes/address.routes.js";
+import orderRouter from "./routes/order.routes.js";
+import paymentRouter from "./routes/payment.routes.js";
+import reviewRouter from "./routes/review.routes.js";
+import adminRouter from "./routes/admin.routes.js";
+
+import { handlePaymentWebhook } from "./controllers/payment.controller.js";
 
 const server = express();
 
-server.use(express.json())
-server.use("/user", userRouter);
-server.use("/product", productRouter)
-server.use("/category", categoryRouter)
-server.use("/cart",cartRouter)
-server.use("/wishlist", wishlistRouter)
-server.use("/address", addressRouter)
-server.use("/order", orderRouter)
+server.post(
+    "/payment/webhook",
+    express.raw({
+        type: "application/json"
+    }),
+    handlePaymentWebhook
+);
 
-mongoose.connect(process.env.dbURL).then(()=>{
-    server.listen(3000, ()=>{
-        console.log("server listening at port 3000")
+server.use(express.json())
+
+server.use("/user", userRouter);
+server.use("/users", userRouter);
+
+server.use("/product", productRouter);
+server.use("/products", productRouter);
+
+server.use("/category", categoryRouter);
+server.use("/categories", categoryRouter);
+
+server.use("/cart", cartRouter);
+server.use("/wishlist", wishlistRouter);
+
+server.use("/address", addressRouter);
+server.use("/addresses", addressRouter);
+
+server.use("/order", orderRouter);
+server.use("/orders", orderRouter);
+
+server.use("/payment", paymentRouter);
+server.use("/payments", paymentRouter);
+
+server.use("/review", reviewRouter);
+server.use("/reviews", reviewRouter);
+
+server.use("/admin", adminRouter);
+
+mongoose.connect(process.env.dbURL)
+    .then(() => {
+        server.listen(3000, () => {
+            console.log("server listening at 3000");
+        });
     })
-})
+    .catch((err) => {
+        console.error("Failed to connect to MongoDB:", err);
+    });
+
 
 

@@ -15,7 +15,7 @@ const generateOrderNumber = async (session)=> {
     const orderNumber = `MAT-${formattedDate}-${randomPart}`
     const isPresent = await Order.findOne({ orderNumber : orderNumber }).session(session)
     if(isPresent) {
-        return generateOrderNumber()
+        return generateOrderNumber(session)
     } else {
         return orderNumber
     }

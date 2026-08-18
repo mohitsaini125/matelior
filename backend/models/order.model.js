@@ -122,12 +122,12 @@ const orderSchema = new mongoose.Schema({
     payment : {
         paymentMethod : {
             type : String,
-            enum : ["cod", "upi", "card", "net-banking", "wallet"],
+            enum : ["cod", "upi", "card", "net-banking", "wallet", "razorpay"],
             required : true
         },
         paymentStatus : {
             type : String,
-            enum : ["pending", "paid", "refunded"],
+            enum : ["pending", "paid", "refunded", "failed"],
             required : true,
             default : "pending"
         },
@@ -213,6 +213,10 @@ const orderSchema = new mongoose.Schema({
         default : null
     },
     shippedAt : {
+        type : Date,
+        default : null
+    },
+    outForDeliveryAt : {
         type : Date,
         default : null
     },
