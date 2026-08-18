@@ -9,7 +9,6 @@ import {
 
 const router = express.Router();
 
-router.post("/", authMiddleware, addToWishlist);
 router.post("/:productId", authMiddleware, addToWishlist);
 router.get("/", authMiddleware, readWishlist);
 router.delete("/:productId", authMiddleware, removeFromWishlist);

@@ -5,11 +5,23 @@ import { errorResponse, failedResponse, successResponse } from "../utils/respons
 
 export const addProduct = async (req, res) => {
     try {
-        const body = req.body;
-        if (!body?.name || !body?.category || !body?.price || body?.stock === undefined) {
-            return failedResponse(res, 400, "Required fields are missing");
-        }
-        const newProduct = await Product.create(body);
+        const { name, category, price, stock, description, discountPercent, sku, images, material, colors, weight, tags, status } = req.body;
+        if (!name?.trim().length || !category?.trim().length || !price || !stock) return failedResponse(res, 400, "Required fields are missing")
+        const newProduct = await Product.create({
+            name: name.trim(),
+            category: category.trim(),
+            price,
+            stock,
+            description: description.trim(),
+            discountPercent,
+            sku,
+            images,
+            material,
+            colors,
+            weight,
+            tags,
+            status,
+        });
         return successResponse(res, 201, "New product has been added", newProduct);
     } catch (err) {
         console.error("addProduct error:", err);
@@ -21,13 +33,8 @@ export const editProduct = async (req, res) => {
     try {
         const id = req.params.id;
         const body = req.body;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return failedResponse(res, 404, "product does not exist");
-        }
         const updatedProduct = await Product.findByIdAndUpdate(id, body, { new: true });
-        if (!updatedProduct) {
-            return failedResponse(res, 404, "product does not exist");
-        }
+        if (!updatedProduct) return failedResponse(res, 404, "product does not exist");
         return successResponse(res, 200, "product updated", updatedProduct);
     } catch (err) {
         console.error("editProduct error:", err);
@@ -38,13 +45,8 @@ export const editProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
     try {
         const id = req.params.id;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return failedResponse(res, 404, "product does not exist");
-        }
         const deletedProduct = await Product.findByIdAndDelete(id);
-        if (!deletedProduct) {
-            return failedResponse(res, 404, "product does not exist");
-        }
+        if (!deletedProduct) return failedResponse(res, 404, "product does not exist");
         return successResponse(res, 200, "product deleted", deletedProduct);
     } catch (err) {
         console.error("deleteProduct error:", err);
@@ -54,63 +56,37 @@ export const deleteProduct = async (req, res) => {
 
 export const getProducts = async (req, res) => {
     try {
-        const { sort, order, category, sku, q, material, color, minPrice, maxPrice } = req.query;
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.max(1, parseInt(req.query.limit, 10) || 10);
+        let { sort, order, category, sku, q, material, color, minPrice, maxPrice, page, limit } = req.query;
+        page = Math.max(1, parseInt(page, 10) || 1);
+        limit = Math.max(1, parseInt(limit, 10) || 10);
         const skip = (page - 1) * limit;
 
         const sortOptions = {};
-        let orderNumber = 1;
-        if (order === "desc") {
-            orderNumber = -1;
-        }
+        const orderNo = order === 'desc' ? -1 : 1
 
-        if (sort === "price") {
-            sortOptions.price = orderNumber;
-        } else if (sort === "category") {
-            sortOptions.category = orderNumber;
-        } else if (sort === "newest") {
-            sortOptions.createdAt = orderNumber;
-        } else if (sort === "popularity") {
-            sortOptions.createdAt = -1;
-        } else if (sort === "rating") {
-            sortOptions.rating = orderNumber;
-        } else {
-            sortOptions.createdAt = -1;
-        }
+        if (sort === "price") sortOptions.price = orderNo;
+        else if (sort === "category") sortOptions.category = orderNo;
+        else if (sort === "newest") sortOptions.createdAt = orderNo;
+        else if (sort === "popularity") sortOptions.createdAt = -1;
+        else if (sort === "rating") sortOptions.rating = orderNo;
+        else sortOptions.createdAt = -1;
 
-        const query = { status: { $ne: "deleted" } };
+        const query = { status: "active" };
 
         if (q) {
             query.$or = [
                 { name: { $regex: q, $options: "i" } },
-                { description: { $regex: q, $options: "i" } },
-                { tags: { $in: [new RegExp(q, "i")] } },
+                { description: { $regex: q, $options: "i" } }
             ];
         }
-        if (category) {
-            let catId = category;
-            if (!mongoose.Types.ObjectId.isValid(category)) {
-                const catDoc = await Category.findOne({
-                    $or: [{ slug: category }, { name: new RegExp(`^${category}$`, "i") }]
-                });
-                if (catDoc) catId = catDoc._id;
-            }
-            query.category = catId;
-        }
-        if (sku) {
-            query.sku = sku;
-        }
-        if (material) {
-            query.material = material;
-        }
-        if (color) {
-            query.colors = { $in: [color] };
-        }
-        if (minPrice !== undefined || maxPrice !== undefined) {
+        if (category) query.category = category;
+        if (sku) query.sku = sku;
+        if (material) query.material = material;
+        if (color) query.colors = { $in: [color] };
+        if (minPrice || maxPrice) {
             query.price = {};
-            if (minPrice !== undefined) query.price.$gte = Number(minPrice);
-            if (maxPrice !== undefined) query.price.$lte = Number(maxPrice);
+            if (minPrice) query.price.$gte = Number(minPrice);
+            if (maxPrice) query.price.$lte = Number(maxPrice);
         }
 
         const [products, total] = await Promise.all([
@@ -140,13 +116,8 @@ export const getProducts = async (req, res) => {
 export const getProductById = async (req, res) => {
     try {
         const id = req.params.id;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return failedResponse(res, 404, "product does not exist");
-        }
         const product = await Product.findById(id).populate("category");
-        if (!product) {
-            return failedResponse(res, 404, "product does not exist");
-        }
+        if (!product) return failedResponse(res, 404, "product does not exist");
         return successResponse(res, 200, "product fetched", product);
     } catch (err) {
         console.error("getProductById error:", err);

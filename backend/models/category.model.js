@@ -7,13 +7,16 @@ const categorySchema = new mongoose.Schema({
         unique : true,
         trim : true
     },
-    slug : {
+    image : {
         type : String,
-        trim : true,
-        lowercase : true
+        required : true,
+        trim : true
     },
-    image : String,
-    description : String,
+    description : {
+        type : String,
+        required : true,
+        trim : true
+    },
     status : {
         type : String,
         enum : ["active", "hidden"],

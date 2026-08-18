@@ -33,7 +33,6 @@ const addressSchema = new mongoose.Schema({
     },
     country : {
         type : String,
-        required : true,
         default : "India"
     },
     pincode : {

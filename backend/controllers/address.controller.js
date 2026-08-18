@@ -2,15 +2,6 @@ import Address from "../models/address.model.js";
 import { errorResponse, failedResponse, successResponse } from "../utils/response.js";
 import mongoose from "mongoose";
 
-function formatAddress(doc) {
-    if (!doc) return null;
-    const obj = doc.toObject ? doc.toObject() : { ...doc };
-    const pin = obj.pincode || obj.postalCode || "";
-    obj.pincode = pin;
-    obj.postalCode = pin;
-    return obj;
-}
-
 export const addAddress = async (req, res) => {
     let session;
     try {
@@ -21,26 +12,25 @@ export const addAddress = async (req, res) => {
         const addressLine1 = body.addressLine1?.trim();
         const addressLine2 = body.addressLine2?.trim() || "";
         const city = body.city?.trim();
-        const state = body.state?.trim() || "Default State";
+        const state = body.state?.trim();
         const country = body.country?.trim() || "India";
         const pincode = (body.pincode || body.postalCode || "").trim();
         const addressType = body.addressType || "home";
 
-        if (!fullName || !phone || !addressLine1 || !city || !pincode) {
-            return failedResponse(res, 400, "Full name, phone, address, city, and postal code are required.");
+        if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
+            return failedResponse(res, 400, "Full name, phone, address, city, state and postal code are required.");
         }
 
         const addresses = await Address.find({ user: userId });
         const isDefault = addresses.length === 0 || body.isDefault === true;
-
         session = await mongoose.startSession();
-        let savedAddress;
+        let address;
 
         await session.withTransaction(async () => {
             if (isDefault && addresses.length) {
-                await Address.updateMany({ user: userId, isDefault: true }, { isDefault: false }, { session });
+                await Address.updateOne({ user: userId, isDefault: true }, { isDefault: false }, { session });
             }
-            const address = new Address({
+            address = await Address.create({
                 user: userId,
                 fullName,
                 phone,
@@ -52,30 +42,23 @@ export const addAddress = async (req, res) => {
                 pincode,
                 addressType,
                 isDefault,
-            });
-            savedAddress = await address.save({ session });
+            }, { session });
         });
-
-        return successResponse(res, 201, "Address added", formatAddress(savedAddress));
+        return successResponse(res, 201, "Address added", address);
     } catch (err) {
         console.error("addAddress error:", err);
         return errorResponse(res, err);
     } finally {
-        if (session) {
-            await session.endSession();
-        }
+        if (session) await session.endSession()
     }
 };
 
 export const updateAddress = async (req, res) => {
     try {
-        const id = req.params.id;
-        const filter = { user: req.user._id, _id: id };
-        const body = req.body || {};
-
-        if (body.postalCode && !body.pincode) {
-            body.pincode = body.postalCode;
-        }
+        const filter = { user: req.user._id, _id: req.params.id };
+        const body = req.body
+        const { postalCode, pincode } = body;
+        if (postalCode && !pincode) body.pincode = postalCode;
 
         const updateData = { ...body };
         delete updateData.user;
@@ -83,12 +66,10 @@ export const updateAddress = async (req, res) => {
         delete updateData.__v;
         delete updateData.createdAt;
         delete updateData.updatedAt;
+        delete updateData.isDefault;
 
         const updatedAddress = await Address.findOneAndUpdate(filter, updateData, { new: true });
-        if (!updatedAddress) {
-            return failedResponse(res, 404, "Address not found.");
-        }
-
+        if (!updatedAddress) return failedResponse(res, 404, "Address not found.")
         return successResponse(res, 200, "Address updated successfully.", formatAddress(updatedAddress));
     } catch (err) {
         console.error("updateAddress error:", err);
@@ -102,7 +83,6 @@ export const setAddressDefault = async (req, res) => {
         const id = req.params.id;
         const userId = req.user._id;
         const targetAddress = await Address.findOne({ user: userId, _id: id });
-
         if (!targetAddress) {
             return failedResponse(res, 404, "Address not found.");
         }
@@ -111,7 +91,7 @@ export const setAddressDefault = async (req, res) => {
         let updatedAddress;
 
         await session.withTransaction(async () => {
-            await Address.updateMany({ user: userId }, { isDefault: false }, { session });
+            await Address.updateOne({ user: userId, isDefault: true }, { isDefault: false }, { session });
             updatedAddress = await Address.findOneAndUpdate(
                 { user: userId, _id: id },
                 { isDefault: true },
@@ -119,7 +99,7 @@ export const setAddressDefault = async (req, res) => {
             );
         });
 
-        return successResponse(res, 200, "Default address updated successfully.", formatAddress(updatedAddress));
+        return successResponse(res, 200, "Default address updated successfully.", updateAddress);
     } catch (err) {
         console.error("setAddressDefault error:", err);
         return errorResponse(res, err);
@@ -139,21 +119,20 @@ export const deleteAddress = async (req, res) => {
         }
 
         const deletedAddress = await Address.findOneAndDelete({ user: req.user._id, _id: id });
-        return successResponse(res, 200, "Address deleted", formatAddress(deletedAddress));
+        return successResponse(res, 200, "Address deleted", deletedAddress);
     } catch (err) {
         console.error("deleteAddress error:", err);
         return errorResponse(res, err);
     }
 };
 
-export const getAddress = async (req, res) => {
+export const getAddresses = async (req, res) => {
     try {
         const userId = req.user._id;
         const addresses = await Address.find({ user: userId }).sort({ isDefault: -1, createdAt: -1 });
-        const formatted = addresses.map(formatAddress);
-        return successResponse(res, 200, "addresses fetched", formatted);
+        return successResponse(res, 200, "addresses fetched", addresses);
     } catch (err) {
-        console.error("getAddress error:", err);
+        console.error("getAddresses error:", err);
         return errorResponse(res, err);
     }
 };
@@ -165,7 +144,7 @@ export const getAddressById = async (req, res) => {
         if (!address) {
             return failedResponse(res, 404, "Address not found.");
         }
-        return successResponse(res, 200, "address fetched", formatAddress(address));
+        return successResponse(res, 200, "address fetched", address);
     } catch (err) {
         console.error("getAddressById error:", err);
         return errorResponse(res, err);

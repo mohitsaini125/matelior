@@ -2,85 +2,39 @@ import express from "express";
 
 import {
     getDashboard,
-
     getAllUsers,
     getUserById,
-
-    getAdminProducts,
     updateProductStock,
-
-    getAllOrders,
     updateOrderStatus,
-
     getAllReviews,
-    deleteReviewByAdmin
+    deleteReviewByAdmin,
+    updateUserRole,
+    getUserActivity
 } from "../controllers/admin.controller.js";
 
-import { authMiddleware, isAdmin } from "../middleware/auth.middleware.js";
+import { authMiddleware, isAdmin, isSuperAdmin } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+router.use(authMiddleware)
 
-// Every admin route requires authentication + admin role
-router.use(
-    authMiddleware,
-    isAdmin
-);
+//Dashobard
+router.get("/dashboard", isAdmin, getDashboard);
 
+//Users
+router.get("/users", isAdmin, getAllUsers);
+router.get("/users/:userId", isAdmin, getUserById);
+router.get("/users/:userId/activity", isAdmin, getUserActivity);
+router.patch("/users/:userId/role", isSuperAdmin, updateUserRole);
 
-// Dashboard
-router.get(
-    "/dashboard",
-    getDashboard
-);
+//Products
+router.patch("/products/:productId/stock", isAdmin,updateProductStock);
 
+//Orders
+router.patch("/orders/:orderId/status",updateOrderStatus);
 
-// Users
-router.get(
-    "/users",
-    getAllUsers
-);
-
-router.get(
-    "/users/:userId",
-    getUserById
-);
-
-
-// Products
-router.get(
-    "/products",
-    getAdminProducts
-);
-
-router.patch(
-    "/products/:productId/stock",
-    updateProductStock
-);
-
-
-// Orders
-router.get(
-    "/orders",
-    getAllOrders
-);
-
-router.patch(
-    "/orders/:orderId/status",
-    updateOrderStatus
-);
-
-
-// Reviews
-router.get(
-    "/reviews",
-    getAllReviews
-);
-
-router.delete(
-    "/reviews/:reviewId",
-    deleteReviewByAdmin
-);
-
+//Reviews
+router.get("/reviews",getAllReviews);
+router.delete("/reviews/:reviewId",deleteReviewByAdmin);
 
 export default router;
