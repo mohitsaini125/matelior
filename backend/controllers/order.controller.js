@@ -13,18 +13,15 @@ export const createOrder = async (req, res)=> {
     try {
         
         const userId = req.user._id
-        const addressId = req.body.addressId
-        const discountAmount = req.body.discountAmount
-        const discountPercent = req.body.discountPercent
-        const paymentMethod = req.body.paymentMethod
-
+        const { addressId, discountAmount, discountPercent, paymentMethod } = req.body
+        
         session = await mongoose.startSession()
         await session.withTransaction(async ()=> {
 
         let address;
         if(!addressId) {
             address = await Address.findOne({ user : userId, isDefault : true }).session(session)
-        } else{
+        } else {
             address = await Address.findOne({ _id : addressId, user : userId }).session(session)
         }
 
@@ -83,14 +80,14 @@ export const createOrder = async (req, res)=> {
         let finalAmount;
         if(discountAmount || discountPercent) {
             if(discountAmount) {
-            if(discountAmount > subtotal) {
+                if(discountAmount > subtotal) {
                 return failedResponse(res, 400, "Discount amount cannot be greater than the subtotal amount.")
-            }
+                }
             finalAmount = subtotal - discountAmount
-        }
-        if(discountPercent) {
+            }
+            if(discountPercent) {
             finalAmount = subtotal * (1 - discountPercent/100)
-        }
+            }
         } else {
             finalAmount = subtotal
         }
@@ -183,7 +180,7 @@ export const createOrder = async (req, res)=> {
 }
 
 
-export const getOrder = async (req, res) => {
+export const getOrders = async (req, res) => {
     try {
         const userId = req.user._id;
         const { status, sort, order } = req.query;
@@ -224,6 +221,103 @@ export const getOrder = async (req, res) => {
         return errorResponse(res, err);
     }
 };
+
+export const getOrderById = async (req, res) => {
+    try {
+        const { orderId } = req.params
+        const userId = req.user._id;
+        const query = req.user.role === "admin"
+            ? { _id: orderId }
+            : { user: userId, _id: orderId }
+
+        const order = await Order.findOne(query)
+            .populate("user", "name email phone")
+            .populate("orderItems.product")
+
+        if (!order) return failedResponse(res, 404, "order does not exist")
+        return successResponse(res, 200, "Order details fetched", order)
+    } catch (err) {
+        console.error("getOrderById error:", err)
+        return errorResponse(res, err)
+    }
+}
+
+export const returnOrder = async (req, res)=> {
+    try {
+        const orderId = req.params.orderId
+        const userId = req.user._id
+        const { returnReason } = req.body
+        if(!returnReason) return failedResponse(res, 400, "return reason is required")
+        const order = await Order.findOne({ user : userId, _id : orderId })
+        if(!order) return failedResponse(res, 404, "order does not exist")
+        if(order.returnInformation.status) {
+            return failedResponse(res, 409, "return already in process")
+        }
+        if(order.orderStatus === "delivered") {
+            const updatedOrder = await Order.findOneAndUpdate(
+                { user : userId, _id : orderId },
+                {
+                    returnInformation : {
+                        reason : returnReason,
+                        status : "requested",
+                        requestedAt : new Date()
+                    },
+                },
+                { returnDocument : "after" }
+            )
+            return successResponse(res, 200, "return request sent", updatedOrder)
+        }
+        return failedResponse(res, 400, "return request not valid (delivered products only !)")
+    } catch(err) {
+        errorResponse(res, err)
+    }
+}
+
+export const cancelOrder = async (req, res)=> {
+    try {
+        const orderId = req.params.orderId
+        const userId = req.user._id
+        const order = await Order.findOne({ user: userId, _id: orderId })
+        if(!order) {
+            return failedResponse(res, 404, "order does not exist")
+        }
+        if(order.orderStatus === "cancelled") {
+            return failedResponse(res, 409, "order already cancelled")
+        }
+        const cancellableStatus = ["pending", "confirmed", "packed"]
+        const isCancellable = cancellableStatus.find(s => s === order.orderStatus)
+
+        if(!isCancellable) return failedResponse(res, 400, "Order is not eligible for cancellation")
+        if (order.orderItems?.length) {
+            for (const item of order.orderItems) {
+                //restore stock
+                if (item.product) {
+                    await Product.findByIdAndUpdate(item.product, {
+                        $inc: { stock: item.quantity }
+                    });
+                }
+            }
+        }
+
+        const updatedOrder = await Order.findOneAndUpdate(
+            { user: userId, _id: orderId },
+            { cancellationInformation : {
+                reason : req.body.cancellationReason || "Cancelled by user",
+                cancelledBy : "user",
+                cancelledAt : new Date()
+            },
+            orderStatus : "cancelled"
+        },
+            { returnDocument : "after" }
+        )
+        return successResponse(res, 200, "order cancelled successfully", updatedOrder)
+
+    } catch(err) {
+        return errorResponse(res, err)
+    }
+}
+
+//Admin API controllers
 
 export const getAllOrdersAdmin = async (req, res) => {
     try {
@@ -267,109 +361,6 @@ export const getAllOrdersAdmin = async (req, res) => {
     }
 };
 
-export const getOrderById = async (req, res) => {
-    try {
-        const orderId = req.params.orderId;
-        const userId = req.user._id;
-        const query = req.user.role === "admin"
-            ? { _id: orderId }
-            : { user: userId, _id: orderId };
-
-        const order = await Order.findOne(query)
-            .populate("user", "name email phone")
-            .populate("orderItems.product");
-
-        if (!order) {
-            return failedResponse(res, 404, "order does not exist");
-        }
-        return successResponse(res, 200, "Order details fetched", order);
-    } catch (err) {
-        console.error("getOrderById error:", err);
-        return errorResponse(res, err);
-    }
-};
-
-export const returnOrder = async (req, res)=> {
-    try {
-        const orderId = req.params.orderId
-        const userId = req.user._id
-        const returnReason = req.body.returnReason
-        const order = await Order.findOne({ user : userId, _id : orderId })
-        if(!order) {
-            return failedResponse(res, 404, "order does not exist")
-        }
-        if(order.returnInformation.status) {
-            return failedResponse(res, 409, "return already in process")
-        }
-        if(order.orderStatus === "delivered") {
-            const updatedOrder = await Order.findOneAndUpdate(
-                { user : userId, _id : orderId },
-                {
-                    returnInformation : {
-                        reason : returnReason,
-                        status : "requested",
-                        requestedAt : new Date()
-                    },
-                },
-                { returnDocument : "after" }
-            )
-            return successResponse(res, 200, "return request sent", updatedOrder)
-        }
-        return failedResponse(res, 400, "return request not valid (delivered products only !)")
-    } catch(err) {
-        errorResponse(res, err)
-    }
-}
-
-export const cancelOrder = async (req, res)=> {
-    try {
-        const orderId = req.params.orderId
-        const userId = req.user._id
-        const order = await Order.findOne({ user: userId, _id: orderId })
-        if(!order) {
-            return failedResponse(res, 404, "order does not exist")
-        }
-        if(order.orderStatus === "cancelled") {
-            return failedResponse(res, 409, "order already cancelled")
-        }
-        const cancellableStatus = ["pending", "confirmed", "packed"]
-        const isCancellable = cancellableStatus.find(s => s === order.orderStatus)
-        if(isCancellable) {
-            // Restore inventory stock
-            if (order.orderItems?.length) {
-                for (const item of order.orderItems) {
-                    if (item.product) {
-                        await Product.findByIdAndUpdate(item.product, {
-                            $inc: { stock: item.quantity }
-                        });
-                    }
-                }
-            }
-
-            const updatedOrder = await Order.findOneAndUpdate(
-                { user: userId, _id: orderId },
-                { cancellationInformation : {
-                    reason : req.body.cancellationReason || "Cancelled by user",
-                    cancelledBy : "user",
-                    cancelledAt : new Date()
-                },
-                orderStatus : "cancelled"
-            },
-                { returnDocument : "after" }
-            )
-            return successResponse(res, 200, "order cancelled successfully", updatedOrder)
-        }
-        return failedResponse(res, 400, "Order is not eligible for cancellation")
-
-    } catch(err) {
-        return errorResponse(res, err)
-    }
-}
-
-
-//Admin API controllers
-
-
 export const updateOrderStatus = async (req, res) => {
     try {
         const orderId = req.params.orderId;
@@ -382,9 +373,9 @@ export const updateOrderStatus = async (req, res) => {
         const transitionMap = {
             "pending": ["confirmed", "cancelled"],
             "confirmed": ["packed", "cancelled"],
-            "packed": ["out for delivery", "shipped", "cancelled"],
-            "shipped": ["out for delivery", "delivered", "cancelled"],
-            "out for delivery": ["delivered", "cancelled"],
+            "packed": ["shipped", "out for delivery", "cancelled"],
+            "shipped": ["out for delivery", "delivered"],
+            "out for delivery": ["delivered"],
             "delivered": ["returned"],
         };
 
@@ -399,12 +390,19 @@ export const updateOrderStatus = async (req, res) => {
         const currentStatus = order.orderStatus;
         const allowedNextStatuses = transitionMap[currentStatus] || [];
 
+         if (!allowedNextStatuses.includes(requestedStatus)) {
+            return failedResponse(
+                res,
+                400,
+                `Invalid status transition from '${currentStatus}' to '${requestedStatus}'. Allowed next: ${allowedNextStatuses.join(", ")}`
+            );
+        }
+
         if (requestedStatus === "cancelled") {
             if (order.orderStatus === "cancelled") {
                 return failedResponse(res, 400, "Order is already cancelled");
             }
 
-            // Restore product stock
             if (order.orderItems?.length) {
                 for (const item of order.orderItems) {
                     if (item.product) {
@@ -430,14 +428,6 @@ export const updateOrderStatus = async (req, res) => {
             return successResponse(res, 200, "Order status updated to cancelled.", updatedOrder);
         }
 
-        if (!allowedNextStatuses.includes(requestedStatus)) {
-            return failedResponse(
-                res,
-                400,
-                `Invalid status transition from '${currentStatus}' to '${requestedStatus}'. Allowed next: ${allowedNextStatuses.join(", ")}`
-            );
-        }
-
         const updateFields = { orderStatus: requestedStatus };
         if (updateObject[requestedStatus]) {
             updateFields[updateObject[requestedStatus]] = new Date();
@@ -445,7 +435,10 @@ export const updateOrderStatus = async (req, res) => {
 
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
-            updateFields,
+            {
+                orderStatus: requestedStatus,
+                [updateObject[requestedStatus]] : new Date()
+            },
             { returnDocument: "after" }
         );
         return successResponse(res, 200, "Order status updated successfully.", updatedOrder);

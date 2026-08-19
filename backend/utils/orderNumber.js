@@ -16,10 +16,10 @@ const generateOrderNumber = async (session)=> {
     const isPresent = await Order.findOne({ orderNumber : orderNumber }).session(session)
     if(isPresent) {
         return generateOrderNumber(session)
-    } else {
-        return orderNumber
     }
+    return orderNumber
 }
 
 export default generateOrderNumber;
+
 

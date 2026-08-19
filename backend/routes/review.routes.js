@@ -14,45 +14,17 @@ import { authMiddleware, isAdmin } from "../middleware/auth.middleware.js";
 const router = express.Router();
 
 
-router.post(
-    "/",
-    authMiddleware,
-    createReview
-);
+router.post("/",authMiddleware,createReview);
 
+router.get("/product/:productId", getProductReviews);
 
-router.get(
-    "/product/:productId",
-    getProductReviews
-);
+router.get("/my",authMiddleware,getMyReviews);
 
+router.patch("/:reviewId",authMiddleware,updateReview);
 
-router.get(
-    "/my",
-    authMiddleware,
-    getMyReviews
-);
+router.delete("/:reviewId",authMiddleware,deleteReview);
 
-
-router.patch(
-    "/:reviewId",
-    authMiddleware,
-    updateReview
-);
-
-
-router.delete(
-    "/:reviewId",
-    authMiddleware,
-    deleteReview
-);
-
-
-router.delete(
-    "/admin/:reviewId",
-    authMiddleware,
-    isAdmin,
-    adminDeleteReview
+router.delete("/admin/:reviewId",authMiddleware,isAdmin,adminDeleteReview
 );
 
 

@@ -14,91 +14,28 @@ export const createReview = async (req, res) => {
         const { productId, rating, review } = req.body;
 
         if (!productId || rating === undefined) {
-            return failedResponse(
-                res,
-                400,
-                "Product ID and rating are required"
-            );
+            return failedResponse(res, 400,"Product ID and rating are required");
         }
 
-        if (
-            typeof rating !== "number" ||
-            rating < 1 ||
-            rating > 5
-        ) {
-            return failedResponse(
-                res,
-                400,
-                "Rating must be between 1 and 5"
-            );
+        if (typeof rating !== "number" || rating < 1 || rating > 5) {
+            return failedResponse(res, 400, "Rating must be between 1 and 5");
         }
 
-        const product = await Product.findOne({
-            _id: productId,
-            status: "active"
-        });
+        const product = await Product.findOne({_id: productId,status: "active"});
+        if (!product) return failedResponse(res, 404, "Product not found");
 
-        if (!product) {
-            return failedResponse(
-                res,
-                404,
-                "Product not found"
-            );
-        }
+        const existingReview = await Review.findOne({user: userId,product: productId});
+        if (existingReview) return failedResponse(res, 400, "You have already reviewed this product");
 
-        const existingReview = await Review.findOne({
-            user: userId,
-            product: productId
-        });
+        const deliveredOrder = await Order.findOne({user: userId,orderStatus: "delivered","orderItems.product": productId});
+        if (!deliveredOrder) return failedResponse(res, 403,"You can review a product only after purchasing it");
 
-        if (existingReview) {
-            return failedResponse(
-                res,
-                400,
-                "You have already reviewed this product"
-            );
-        }
+        const newReview = await Review.create({user: userId,product: productId,rating,review});
 
-        /*
-         * Check whether the user has actually purchased
-         * and received this product.
-         */
-        const deliveredOrder = await Order.findOne({
-            user: userId,
-            orderStatus: "delivered",
-            "orderItems.product": productId
-        });
-
-        if (!deliveredOrder) {
-            return failedResponse(
-                res,
-                403,
-                "You can review a product only after purchasing it"
-            );
-        }
-
-        const newReview = await Review.create({
-            user: userId,
-            product: productId,
-            rating,
-            review
-        });
-
-        return successResponse(
-            res,
-            201,
-            "Review created successfully",
-            newReview
-        );
-
+        return successResponse(res, 201,"Review created successfully",newReview);
     } catch (error) {
         console.error("createReview:", error);
-
-        return errorResponse(
-            res,
-            500,
-            "Failed to create review"
-        );
+        return errorResponse(res, 500,"Failed to create review");
     }
 };
 
@@ -108,73 +45,26 @@ export const getProductReviews = async (req, res) => {
 
         const product = await Product.findById(productId);
 
-        if (!product) {
-            return failedResponse(
-                res,
-                404,
-                "Product not found"
-            );
-        }
+        if (!product) return failedResponse(res, 404, "Product not found");
 
-        const reviews = await Review.find({
-            product: productId
-        })
-            .populate({
-                path: "user",
-                select: "name"
-            })
-            .sort({
-                createdAt: -1
-            });
+        const reviews = await Review.find({product: productId}).populate({ path: "user", select: "name" }).sort({createdAt: -1});
 
-        return successResponse(
-            res,
-            200,
-            "Reviews fetched successfully",
-            reviews
-        );
+        return successResponse(res, 200,"Reviews fetched successfully", reviews);
 
     } catch (error) {
         console.error("getProductReviews:", error);
-
-        return errorResponse(
-            res,
-            500,
-            "Failed to fetch reviews"
-        );
+        return errorResponse(res, 500,"Failed to fetch reviews");
     }
 };
 
 export const getMyReviews = async (req, res) => {
     try {
         const userId = req.user._id;
-
-        const reviews = await Review.find({
-            user: userId
-        })
-            .populate({
-                path: "product",
-                select: "name images price"
-            })
-            .sort({
-                createdAt: -1
-            });
-
-        return successResponse(
-            res,
-            200,
-            "Your reviews fetched successfully",
-            reviews
-        );
-
+        const reviews = await Review.find({user: userId}).populate({ path: "product", select: "name images price" }).sort({createdAt: -1});
+        return successResponse(res, 200,"Your reviews fetched successfully", reviews);
     } catch (error) {
         console.error("getMyReviews:", error);
-
-        return errorResponse(
-            res,
-            500,
-            "Failed to fetch your reviews"
-        );
+        return errorResponse(res, 500,"Failed to fetch your reviews");
     }
 };
 
@@ -184,56 +74,23 @@ export const updateReview = async (req, res) => {
         const { reviewId } = req.params;
         const { rating, review } = req.body;
 
-        const existingReview = await Review.findOne({
-            _id: reviewId,
-            user: userId
-        });
+        const existingReview = await Review.findOne({ _id: reviewId, user: userId });
 
-        if (!existingReview) {
-            return failedResponse(
-                res,
-                404,
-                "Review not found"
-            );
-        }
+        if (!existingReview) return failedResponse(res, 404,"Review not found");
 
-        if (rating !== undefined) {
-            if (
-                typeof rating !== "number" ||
-                rating < 1 ||
-                rating > 5
-            ) {
-                return failedResponse(
-                    res,
-                    400,
-                    "Rating must be between 1 and 5"
-                );
-            }
-
+        if (rating) {
+            if (typeof rating !== "number" || rating < 1 || rating > 5) return failedResponse(res, 400, "Rating must be between 1 and 5");
             existingReview.rating = rating;
         }
 
-        if (review !== undefined) {
-            existingReview.review = review;
-        }
-
+        if (review) existingReview.review = review;
         await existingReview.save();
 
-        return successResponse(
-            res,
-            200,
-            "Review updated successfully",
-            existingReview
-        );
+        return successResponse(res, 200,"Review updated successfully", existingReview);
 
     } catch (error) {
         console.error("updateReview:", error);
-
-        return errorResponse(
-            res,
-            500,
-            "Failed to update review"
-        );
+        return errorResponse(res, 500,"Failed to update review");
     }
 };
 
@@ -242,33 +99,15 @@ export const deleteReview = async (req, res) => {
         const userId = req.user._id;
         const { reviewId } = req.params;
 
-        const review = await Review.findOneAndDelete({
-            _id: reviewId,
-            user: userId
-        });
+        const review = await Review.findOneAndDelete({_id: reviewId,user: userId});
 
-        if (!review) {
-            return failedResponse(
-                res,
-                404,
-                "Review not found"
-            );
-        }
+        if (!review) return failedResponse(res, 404,"Review not found");
 
-        return successResponse(
-            res,
-            200,
-            "Review deleted successfully"
-        );
+        return successResponse(res, 200,"Review deleted successfully");
 
     } catch (error) {
         console.error("deleteReview:", error);
-
-        return errorResponse(
-            res,
-            500,
-            "Failed to delete review"
-        );
+        return errorResponse(res, 500,"Failed to delete review");
     }
 };
 
@@ -276,35 +115,14 @@ export const adminDeleteReview = async (req, res) => {
     try {
         const { reviewId } = req.params;
 
-        const review =
-            await Review.findByIdAndDelete(
-                reviewId
-            );
+        const review = await Review.findByIdAndDelete(reviewId);
 
-        if (!review) {
-            return failedResponse(
-                res,
-                404,
-                "Review not found"
-            );
-        }
+        if (!review) return failedResponse(res, 404,"Review not found");
 
-        return successResponse(
-            res,
-            200,
-            "Review deleted successfully"
-        );
+        return successResponse(res, 200,"Review deleted successfully");
 
     } catch (error) {
-        console.error(
-            "adminDeleteReview:",
-            error
-        );
-
-        return errorResponse(
-            res,
-            500,
-            "Failed to delete review"
-        );
+        console.error("adminDeleteReview:",error);
+        return errorResponse(res, 500,"Failed to delete review");
     }
 };

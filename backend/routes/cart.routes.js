@@ -11,15 +11,10 @@ import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, addToCart);
-router.post("/:id", authMiddleware, addToCart);
+router.post("/:productId", authMiddleware, addToCart);
 router.get("/", authMiddleware, getCart);
-router.patch("/:itemId", authMiddleware, updateCartQuantity);
-router.delete("/:itemId", authMiddleware, removeFromCart);
+router.patch("/:productId", authMiddleware, updateCartQuantity);
+router.delete("/:productId", authMiddleware, removeFromCart);
 router.delete("/", authMiddleware, clearCart);
-
-// Legacy routes fallback
-router.delete("/items/:productId", authMiddleware, deleteCartProduct);
-router.delete("/item/:productId", authMiddleware, removeFromCart);
 
 export default router;

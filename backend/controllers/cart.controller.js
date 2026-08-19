@@ -5,7 +5,7 @@ import { errorResponse, failedResponse, successResponse } from "../utils/respons
 export const addToCart = async (req, res) => {
     try {
         const userId = req.user._id;
-        const productId = req.params.id;
+        const productId = req.params.productId;
         const quantity = Math.max(1, parseInt(req.body.quantity, 10) || 1);
 
         if (!productId) return failedResponse(res, 400, "Product ID is required");
@@ -79,22 +79,21 @@ export const updateCartQuantity = async (req, res) => {
 export const removeFromCart = async (req, res) => {
     try {
         const userId = req.user._id;
-        const itemId = req.params.itemId || req.params.productId || req.params.id;
+        const { productId } = req.params;
 
         const cart = await Cart.findOne({ user: userId });
         if (!cart) {
-            return successResponse(res, 200, "Cart is empty", { items: [], total: 0 });
+            return failedResponse(res, 404, "Cart does not exist");
         }
 
         cart.items = cart.items.filter(
             (item) =>
-                item._id.toString() !== itemId &&
-                item.product.toString() !== itemId
+                item.product.toString() !== productId
         );
 
         await cart.save();
-        const populatedCart = await Cart.findById(cart._id).populate("items.product");
-        return successResponse(res, 200, "Product removed from cart", formatCart(populatedCart));
+        const updatedCart = await Cart.findById({ user: userId }).populate("items.product");
+        return successResponse(res, 200, "Product removed from cart", updatedCart);
     } catch (err) {
         console.error("removeFromCart error:", err);
         return errorResponse(res, err);
@@ -105,10 +104,8 @@ export const getCart = async (req, res) => {
     try {
         const userId = req.user._id;
         const cart = await Cart.findOne({ user: userId }).populate("items.product");
-        if (!cart) {
-            return successResponse(res, 200, "Cart is empty", { items: [], total: 0 });
-        }
-        return successResponse(res, 200, "Cart items fetched", formatCart(cart));
+        if(!cart) return failedResponse(res, 404, "Cart does not exist");
+        return successResponse(res, 200, "Cart items fetched", cart);
     } catch (err) {
         console.error("getCart error:", err);
         return errorResponse(res, err);
@@ -119,11 +116,10 @@ export const clearCart = async (req, res) => {
     try {
         const userId = req.user._id;
         const cart = await Cart.findOne({ user: userId });
-        if (cart) {
-            cart.items = [];
-            await cart.save();
-        }
-        return successResponse(res, 200, "Cart cleared successfully", { items: [], total: 0 });
+        if(!cart) return failedResponse(res, 404, "Cart does not exist");
+        cart.items = [];
+        await cart.save();
+        return successResponse(res, 200, "Cart cleared successfully", cart);
     } catch (err) {
         console.error("clearCart error:", err);
         return errorResponse(res, err);

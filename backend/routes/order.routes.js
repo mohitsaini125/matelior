@@ -4,8 +4,8 @@ import {
     cancelOrder,
     createOrder,
     getAllOrdersAdmin,
-    getOrder,
     getOrderById,
+    getOrders,
     returnOrder,
     updateOrderStatus,
     updateRefundStatus,
@@ -14,7 +14,14 @@ import {
 
 const router = express.Router();
 
-// Admin APIs (placed before /:orderId to prevent parameter capture)
+// Customer APIs
+router.post("/", authMiddleware, createOrder);
+router.get("/", authMiddleware, getOrders);
+router.get("/:orderId", authMiddleware, getOrderById);
+router.patch("/:orderId/return", authMiddleware, returnOrder);
+router.patch("/:orderId/cancel", authMiddleware, cancelOrder);
+
+// Admin
 router.get("/admin", authMiddleware, isAdmin, getAllOrdersAdmin);
 router.patch(
     "/admin/:orderId/status",
@@ -34,12 +41,5 @@ router.patch(
     isAdmin,
     updateRefundStatus
 );
-
-// Customer APIs
-router.post("/", authMiddleware, createOrder);
-router.get("/", authMiddleware, getOrder);
-router.get("/:orderId", authMiddleware, getOrderById);
-router.patch("/:orderId/return", authMiddleware, returnOrder);
-router.patch("/:orderId/cancel", authMiddleware, cancelOrder);
 
 export default router;

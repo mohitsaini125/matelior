@@ -23,58 +23,20 @@ export const createPayment = async (req, res) => {
         const userId = req.user._id;
         const { orderId } = req.body;
 
-        if (!orderId) {
-            return failedResponse(
-                res,
-                400,
-                "Order ID is required"
-            );
-        }
+        if (!orderId) return failedResponse(res, 400,"Order ID is required");
 
-        const order = await Order.findOne({
-            _id: orderId,
-            user: userId
-        });
+        const order = await Order.findOne({_id: orderId, user: userId});
 
-        if (!order) {
-            return failedResponse(
-                res,
-                404,
-                "Order not found"
-            );
-        }
+        if (!order) return failedResponse(res, 404,"Order not found"); 
+        
+        if (order.payment?.paymentMethod === "cod") return failedResponse(res, 400,"This order is configured for Cash on Delivery");
+        
+        if (order.payment?.paymentStatus === "paid") return failedResponse(res,400,"Order is already paid");
+        
 
-        if (order.payment?.paymentMethod === "cod") {
-            return failedResponse(
-                res,
-                400,
-                "This order is configured for Cash on Delivery"
-            );
-        }
+        let payment = await Payment.findOne({order: order._id});
 
-        if (order.payment?.paymentStatus === "paid") {
-            return failedResponse(
-                res,
-                400,
-                "Order is already paid"
-            );
-        }
-
-        let payment = await Payment.findOne({
-            order: order._id
-        });
-
-        if (payment?.razorpayOrderId) {
-            return successResponse(
-                res,
-                200,
-                "Payment already initialized",
-                {
-                    payment,
-                    razorpayKeyId: process.env.RAZORPAY_KEY_ID
-                }
-            );
-        }
+        if (payment?.razorpayOrderId) return successResponse(res,200,"Payment already initialized", {payment,razorpayKeyId: process.env.RAZORPAY_KEY_ID})
 
         let razorpayOrder;
         try {
@@ -89,11 +51,7 @@ export const createPayment = async (req, res) => {
             });
         } catch (createErr) {
             console.log("Razorpay order simulated for environment:", createErr.message);
-            razorpayOrder = {
-                id: `order_rzp_${Date.now()}`,
-                amount: Math.round(order.totalAmount * 100),
-                currency: "INR"
-            };
+            razorpayOrder = {id: `order_rzp_${Date.now()}`,amount: Math.round(order.totalAmount * 100),currency: "INR"};
         }
 
         if (!payment) {
@@ -144,92 +102,33 @@ export const verifyPayment = async (req, res) => {
             razorpaySignature
         } = req.body;
 
-        if (
-            !razorpayPaymentId ||
-            !razorpayOrderId ||
-            !razorpaySignature
-        ) {
-            return failedResponse(
-                res,
-                400,
-                "Payment verification details are required"
-            );
+        if (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+            return failedResponse(res, 400,"Payment verification details are required");
         }
 
-        const payment = await Payment.findOne({
-            razorpayOrderId
-        });
+        const payment = await Payment.findOne({razorpayOrderId});
 
-        if (!payment) {
-            return failedResponse(
-                res,
-                404,
-                "Payment record not found"
-            );
-        }
+        if (!payment) return failedResponse(res,404,"Payment record not found");
 
-        if (payment.user.toString() !== userId.toString()) {
-            return failedResponse(
-                res,
-                403,
-                "You are not authorized to verify this payment"
-            );
-        }
+        if (payment.user.toString() !== userId.toString()) return failedResponse(res,403,"You are not authorized to verify this payment");
 
         /*
          * Always use the Razorpay Order ID stored
          * in your database for signature verification.
          */
-        const generatedSignature = crypto
-            .createHmac(
-                "sha256",
-                process.env.RAZORPAY_KEY_SECRET || "placeholder_secret"
-            )
-            .update(
-                `${payment.razorpayOrderId}|${razorpayPaymentId}`
-            )
-            .digest("hex");
+        const generatedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "placeholder_secret").update(`${payment.razorpayOrderId}|${razorpayPaymentId}`).digest("hex");
 
         let isValid = false;
-        if (razorpaySignature === "dev_verified" || razorpaySignature === "test_signature" || razorpaySignature === generatedSignature) {
-            isValid = true;
-        } else if (razorpaySignature && Buffer.byteLength(razorpaySignature) === Buffer.byteLength(generatedSignature)) {
-            isValid = crypto.timingSafeEqual(
-                Buffer.from(generatedSignature),
-                Buffer.from(razorpaySignature)
-            );
-        }
+        if (razorpaySignature === "dev_verified" || razorpaySignature === "test_signature" || razorpaySignature === generatedSignature) isValid = true;
+        else if (razorpaySignature && Buffer.byteLength(razorpaySignature) === Buffer.byteLength(generatedSignature)) isValid = crypto.timingSafeEqual(Buffer.from(generatedSignature),Buffer.from(razorpaySignature));
 
-        if (!isValid) {
-            return failedResponse(
-                res,
-                400,
-                "Invalid payment signature"
-            );
-        }
+        if (!isValid) return failedResponse(res, 400, "Invalid payment signature");
 
-        /*
-         * Prevent duplicate processing.
-         */
-        if (payment.status === "paid") {
-            return successResponse(
-                res,
-                200,
-                "Payment already verified",
-                payment
-            );
-        }
+        if (payment.status === "paid") return successResponse(res,200,"Payment already verified",payment);
 
-        /*
-         * Fetch payment from Razorpay to verify
-         * the actual gateway status when live credentials are used.
-         */
         let razorpayPayment;
         try {
-            razorpayPayment =
-                await getRazorpay().payments.fetch(
-                    razorpayPaymentId
-                );
+            razorpayPayment = await getRazorpay().payments.fetch(razorpayPaymentId);
 
             if (razorpayPayment && razorpayPayment.status && razorpayPayment.status !== "captured") {
                 payment.status = "failed";
@@ -238,43 +137,23 @@ export const verifyPayment = async (req, res) => {
 
                 await payment.save();
 
-                return failedResponse(
-                    res,
-                    400,
-                    `Payment is not captured. Current status: ${razorpayPayment.status}`
-                );
+                return failedResponse(res,400,`Payment is not captured. Current status: ${razorpayPayment.status}`);
             }
         } catch (fetchErr) {
-            // In dev / test offline environments, log and proceed with verification
             console.log("Razorpay fetch bypassed in test environment:", fetchErr.message);
         }
 
-        /*
-         * Verify amount when payment details were retrieved from gateway.
-         */
         if (
             razorpayPayment &&
             razorpayPayment.amount !== undefined &&
             razorpayPayment.amount !== Math.round(payment.amount * 100)
         ) {
-            return failedResponse(
-                res,
-                400,
-                "Payment amount mismatch"
-            );
+            return failedResponse(res,400,"Payment amount mismatch");
         }
 
-        const order = await Order.findById(
-            payment.order
-        );
+        const order = await Order.findById(payment.order);
 
-        if (!order) {
-            return failedResponse(
-                res,
-                404,
-                "Associated order not found"
-            );
-        }
+        if (!order) return failedResponse(res,404,"Associated order not found");
 
         payment.razorpayPaymentId =
             razorpayPaymentId;
@@ -307,15 +186,7 @@ export const verifyPayment = async (req, res) => {
 
         await order.save();
 
-        return successResponse(
-            res,
-            200,
-            "Payment verified successfully",
-            {
-                payment,
-                order
-            }
-        );
+        return successResponse(res,200,"Payment verified successfully",{payment,order});
 
     } catch (error) {
         console.error("verifyPayment:", error);
@@ -337,20 +208,9 @@ export const getPayment = async (req, res) => {
             select: "orderNumber totalAmount orderStatus payment"
         });
 
-        if (!payment) {
-            return failedResponse(
-                res,
-                404,
-                "Payment not found"
-            );
-        }
+        if (!payment) return failedResponse(res,404,"Payment not found");
 
-        return successResponse(
-            res,
-            200,
-            "Payment fetched successfully",
-            payment
-        );
+        return successResponse(res,200,"Payment fetched successfully",payment);
 
     } catch (error) {
         console.error("getPayment:", error);
