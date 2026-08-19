@@ -98,13 +98,9 @@ export const deleteReview = async (req, res) => {
     try {
         const userId = req.user._id;
         const { reviewId } = req.params;
-
         const review = await Review.findOneAndDelete({_id: reviewId,user: userId});
-
         if (!review) return failedResponse(res, 404,"Review not found");
-
         return successResponse(res, 200,"Review deleted successfully");
-
     } catch (error) {
         console.error("deleteReview:", error);
         return errorResponse(res, 500,"Failed to delete review");
@@ -114,13 +110,9 @@ export const deleteReview = async (req, res) => {
 export const adminDeleteReview = async (req, res) => {
     try {
         const { reviewId } = req.params;
-
         const review = await Review.findByIdAndDelete(reviewId);
-
         if (!review) return failedResponse(res, 404,"Review not found");
-
         return successResponse(res, 200,"Review deleted successfully");
-
     } catch (error) {
         console.error("adminDeleteReview:",error);
         return errorResponse(res, 500,"Failed to delete review");
