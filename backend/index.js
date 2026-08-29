@@ -54,8 +54,8 @@ server.use("/admin", adminRouter);
 
 mongoose.connect(process.env.dbURL)
     .then(() => {
-        server.listen(3000, () => {
-            console.log("server listening at 3000");
+        server.listen(process.env.PORT || 3000, () => {
+            console.log(`server listening at ${process.env.PORT}`);
         });
     })
     .catch((err) => {

@@ -23,12 +23,6 @@ const paymentSchema = new mongoose.Schema(
             min: 0
         },
 
-        currency: {
-            type: String,
-            default: "INR",
-            uppercase: true
-        },
-
         method: {
             type: String,
             enum: ["cod", "razorpay"],
@@ -43,7 +37,6 @@ const paymentSchema = new mongoose.Schema(
                 "paid",
                 "failed",
                 "refunded",
-                "partially_refunded"
             ],
             default: "pending"
         },

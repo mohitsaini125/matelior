@@ -17,7 +17,6 @@ import mongoose from "mongoose"
                 min : 1
             }
         }
-
     ]
 })
 

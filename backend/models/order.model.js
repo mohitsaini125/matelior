@@ -118,28 +118,6 @@ const orderSchema = new mongoose.Schema({
             default : "India"
         }
     },
-    payment : {
-        paymentMethod : {
-            type : String,
-            enum : ["cod", "upi", "card", "net-banking", "wallet", "razorpay"],
-            required : true
-        },
-        paymentStatus : {
-            type : String,
-            enum : ["pending", "paid", "refunded"],
-            required : true,
-            default : "pending"
-        },
-        transactionId : {
-            type : String,
-            trim : true
-        },
-        paymentGateway : {
-            type : String,
-            enum : ["razorpay", "stripe", "cash"],
-        },
-        paidAt : Date
-    },
     orderNumber : {
         type : String,
         trim : true,

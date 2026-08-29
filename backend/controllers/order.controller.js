@@ -5,6 +5,7 @@ import { errorResponse, failedResponse, successResponse } from "../utils/respons
 import Order from "../models/order.model.js";
 import generateOrderNumber from "../utils/orderNumber.js";
 import Product from "../models/product.models.js";
+import Payment from "../models/payment.model.js"
 
 //User API controllers
 
@@ -122,7 +123,11 @@ export const createOrder = async (req, res)=> {
             estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 5)
             const orderNumber = await generateOrderNumber(session)
 
-            const order = await Order.create([{
+            // Order.create([...]) with an array argument returns an ARRAY of
+            // documents, not a single document. Keep the created doc under
+            // its own name so downstream code (Payment.create below) can't
+            // accidentally read .._id / .totalAmount off the array itself.
+            const createdOrders = await Order.create([{
                 user : userId,
                 orderItems : orderItems,
                 subTotal : subtotal,
@@ -142,16 +147,18 @@ export const createOrder = async (req, res)=> {
                     pincode : address.pincode,
                     country : address.country
                 },
-                payment : {
-                    paymentMethod : paymentMethod,
-                    paymentStatus : "pending",
-                    transactionId : null,
-                    paymentGateway : null,
-                    paidAt : null
-                },
                 orderNumber : orderNumber,
                 estimatedDeliveryDate : estimatedDeliveryDate
             }], { session })
+
+            const order = createdOrders[0]
+
+            await Payment.create({
+                order : order._id,
+                user : userId,
+                amount : order.totalAmount,
+                method : paymentMethod
+            }, { session })
 
             for (let i=0; i < cartItems.length; i++) {
             const cartItem = cartItems[i]
@@ -168,7 +175,7 @@ export const createOrder = async (req, res)=> {
         cart.items = []
         await cart.save({ session })
 
-            return successResponse(res, 201, "Order created successfully", order[0])
+            return successResponse(res, 201, "Order created successfully", order)
         })
     } catch(err) {
         return errorResponse(res, err)
@@ -390,12 +397,8 @@ export const updateOrderStatus = async (req, res) => {
         const currentStatus = order.orderStatus;
         const allowedNextStatuses = transitionMap[currentStatus] || [];
 
-         if (!allowedNextStatuses.includes(requestedStatus)) {
-            return failedResponse(
-                res,
-                400,
-                `Invalid status transition from '${currentStatus}' to '${requestedStatus}'. Allowed next: ${allowedNextStatuses.join(", ")}`
-            );
+        if (!allowedNextStatuses.includes(requestedStatus)) {
+            return failedResponse(res,400,`Invalid status transition from '${currentStatus}' to '${requestedStatus}'. Allowed next: ${allowedNextStatuses.join(", ")}`)
         }
 
         if (requestedStatus === "cancelled") {
@@ -507,32 +510,26 @@ export const updateRefundStatus = async (req, res) => {
     try {
         const orderId = req.params.orderId;
         const order = await Order.findById(orderId);
-        if (!order) {
-            return failedResponse(res, 404, "order does not exist");
-        }
-        if (!order.refundInformation?.status) {
-            return failedResponse(res, 400, "refund request does not exist");
-        }
+        if (!order) return failedResponse(res, 404, "order does not exist");
+        if (!order.refundInformation?.status) return failedResponse(res, 400, "refund request does not exist");
 
-        if (order.refundInformation.status === "refunded") {
-            return failedResponse(res, 409, "Order already refunded.");
-        }
+        if (order.refundInformation.status === "refunded") return failedResponse(res, 409, "Order already refunded.");
 
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
             {
-                "refundInformation.status": "refunded",
-                "refundInformation.completedAt": new Date(),
-                "payment.paymentStatus": "refunded",
-                orderStatus: "refunded",
+                "refundInformation.status" : "refunded",
+                "refundInformation.completedAt" : new Date(),
+                "payment.paymentStatus" : "refunded",
+                orderStatus : "refunded",
             },
-            { returnDocument: "after" }
-        );
+            { returnDocument : "after" }
+        )
 
-        return successResponse(res, 200, "Refund status updated successfully", updatedOrder);
-    } catch (err) {
-        console.error("updateRefundStatus error:", err);
-        return errorResponse(res, err);
+        return successResponse(res, 200, "Refund status updated successfully", updatedOrder)
+    } catch(err) {
+        console.error("updateRefundStatus error:", err)
+        return errorResponse(res, err)
     }
 };
 
@@ -567,4 +564,4 @@ export const updateRefundStatus = async (req, res) => {
 
 // Update order status patch-> /admin/order/:orderId/status (pending -> confirmed -> packed -> shipped -> out for delivery -> delivered)       - done 
 
-// refund patch-> /admin/order/:orderId/refund (paymentStatus -> refunded)  - done 
+// refund patch-> /admin/order/:orderId/refund (paymentStatus -> refunded)  - done
